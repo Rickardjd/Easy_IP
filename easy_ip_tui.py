@@ -1223,6 +1223,10 @@ class EasyIPTUI(App):
         self._monitor_timer = None
         self._is_monitoring_scan = False  # Flag to distinguish monitor scans from manual scans
         self._row_keys: List[str] = []  # Map row index to key
+        # Sorting state
+        self._sort_column: Optional[str] = None  # field name to sort by, or None
+        self._sort_ascending: bool = True
+        self._column_fields: List[Optional[str]] = []  # maps column index to sortable field name
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -1238,25 +1242,51 @@ class EasyIPTUI(App):
         self._add_table_columns(table)
         return table
 
+    def _make_col_label(self, name: str, field: Optional[str]) -> str:
+        """Return column label with sort indicator when this column is the active sort."""
+        if field and field == self._sort_column:
+            indicator = " \u25b2" if self._sort_ascending else " \u25bc"
+            return f"{name}{indicator}"
+        return name
+
     def _add_table_columns(self, table: DataTable) -> None:
-        """Add columns to table based on visibility settings"""
-        columns = ["", "Device"]  # Group indicator and device name always shown
+        """Add columns to table based on visibility settings, tracking sortable fields."""
+        self._column_fields = []
+        columns = []
+
+        # Group indicator column – not sortable
+        columns.append("")
+        self._column_fields.append(None)
+
+        # Device name – always shown, sortable
+        columns.append(self._make_col_label("Device", "device_name"))
+        self._column_fields.append("device_name")
+
         if self.site_data.show_device_type:
-            columns.append("Type")
+            columns.append(self._make_col_label("Type", "device_type"))
+            self._column_fields.append("device_type")
         if self.site_data.show_ip_address:
-            columns.append("IP Address")
+            columns.append(self._make_col_label("IP Address", "ip_address"))
+            self._column_fields.append("ip_address")
         if self.site_data.show_mac_address:
-            columns.append("MAC Address")
+            columns.append(self._make_col_label("MAC Address", "mac_address"))
+            self._column_fields.append("mac_address")
         if self.site_data.show_model:
-            columns.append("Model")
+            columns.append(self._make_col_label("Model", "model_name"))
+            self._column_fields.append("model_name")
         if self.site_data.show_serial:
-            columns.append("Serial")
+            columns.append(self._make_col_label("Serial", "serial_number"))
+            self._column_fields.append("serial_number")
         if self.site_data.show_http_port:
-            columns.append("Port")
+            columns.append(self._make_col_label("Port", "http_port"))
+            self._column_fields.append("http_port")
         if self.site_data.show_firmware:
-            columns.append("Firmware")
+            columns.append(self._make_col_label("Firmware", "firmware_version"))
+            self._column_fields.append("firmware_version")
         if self.site_data.show_status:
-            columns.append("Status")
+            columns.append(self._make_col_label("Status", "status"))
+            self._column_fields.append("status")
+
         table.add_columns(*columns)
 
     def _rebuild_table_columns(self) -> None:
@@ -1347,6 +1377,42 @@ class EasyIPTUI(App):
 
         return row
 
+    # ------------------------------------------------------------------ sorting
+
+    _FIELD_DISPLAY_NAMES = {
+        "device_name": "Device",
+        "device_type": "Type",
+        "ip_address": "IP Address",
+        "mac_address": "MAC Address",
+        "model_name": "Model",
+        "serial_number": "Serial",
+        "http_port": "Port",
+        "firmware_version": "Firmware",
+        "status": "Status",
+    }
+
+    def _ip_sort_key(self, ip_str: str) -> tuple:
+        """Convert an IP address string to a tuple of ints for correct numeric ordering."""
+        try:
+            return tuple(int(x) for x in ip_str.split("."))
+        except (ValueError, AttributeError):
+            return (0, 0, 0, 0)
+
+    def _get_sorted_devices(self, devices: List[TrackedDevice]) -> List[TrackedDevice]:
+        """Return a sorted copy of *devices* according to the current sort state."""
+        if not self._sort_column:
+            return list(devices)
+
+        def sort_key(device: TrackedDevice):
+            val = getattr(device, self._sort_column, "")
+            if self._sort_column == "ip_address":
+                return self._ip_sort_key(str(val))
+            if isinstance(val, int):
+                return (val,)
+            return (str(val).lower(),)
+
+        return sorted(devices, key=sort_key, reverse=not self._sort_ascending)
+
     def refresh_table(self) -> None:
         """Refresh the data table"""
         table = self.query_one("#main-table", DataTable)
@@ -1369,7 +1435,7 @@ class EasyIPTUI(App):
 
             # Add device rows only if group is expanded
             if group.expanded:
-                for device in group.devices:
+                for device in self._get_sorted_devices(group.devices):
                     # Sanitize MAC address for key (replace colons)
                     mac_key = device.mac_address.replace(":", "-")
                     device_key = f"device-{mac_key}"
@@ -1412,6 +1478,44 @@ class EasyIPTUI(App):
             if result:
                 _, device = result
                 self.push_screen(DeviceDetailsScreen(device), self._handle_device_details)
+
+    def on_data_table_header_selected(self, event: DataTable.HeaderSelected) -> None:
+        """Cycle sort state when a column header is clicked.
+
+        Click 1 on a column  → sort ascending  (▲)
+        Click 2 on same col  → sort descending (▼)
+        Click 3 on same col  → clear sort (back to insertion order)
+        """
+        col_idx = event.column_index
+        if col_idx >= len(self._column_fields):
+            return
+
+        field = self._column_fields[col_idx]
+        if field is None:
+            return  # Group-indicator column is not sortable
+
+        if self._sort_column == field:
+            if self._sort_ascending:
+                # ascending → descending
+                self._sort_ascending = False
+            else:
+                # descending → clear
+                self._sort_column = None
+                self._sort_ascending = True
+        else:
+            # New column → ascending
+            self._sort_column = field
+            self._sort_ascending = True
+
+        self._rebuild_table_columns()
+        self.refresh_table()
+
+        if self._sort_column:
+            direction = "\u25b2 Ascending" if self._sort_ascending else "\u25bc Descending"
+            col_name = self._FIELD_DISPLAY_NAMES.get(self._sort_column, self._sort_column)
+            self.notify(f"Sorted by {col_name} {direction}")
+        else:
+            self.notify("Sort cleared \u2014 default order restored")
 
     def _handle_device_details(self, result) -> None:
         """Handle device details screen result"""
@@ -1809,14 +1913,16 @@ class EasyIPTUI(App):
         if not options:
             return
 
-        # Determine which devices to export
+        # Determine which devices to export (respecting current sort order)
         if options['scope'] == 'all':
-            devices = self.site_data.get_all_devices()
+            devices = []
+            for group in self.site_data.groups:
+                devices.extend(self._get_sorted_devices(group.devices))
         else:
             devices = []
             for group in self.site_data.groups:
                 if group.name == options['scope']:
-                    devices = group.devices
+                    devices = self._get_sorted_devices(group.devices)
                     break
 
         if not devices:
