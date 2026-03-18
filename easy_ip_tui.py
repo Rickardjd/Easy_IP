@@ -42,6 +42,38 @@ except ImportError:
     from easy_ip import iPROIPSetup, DeviceInfo, get_network_interfaces
 
 
+_APP_CONFIG_PATH = Path(__file__).parent / "app_config.json"
+
+
+@dataclass
+class AppConfig:
+    """Application-level settings, persisted independently of site data."""
+    data_folder: str = "data"
+
+    def save(self) -> None:
+        with open(_APP_CONFIG_PATH, 'w') as f:
+            json.dump({'data_folder': self.data_folder}, f, indent=2)
+
+    @classmethod
+    def load(cls) -> 'AppConfig':
+        try:
+            with open(_APP_CONFIG_PATH, 'r') as f:
+                data = json.load(f)
+                return cls(data_folder=data.get('data_folder', 'data'))
+        except Exception:
+            return cls()
+
+    @property
+    def data_path(self) -> Path:
+        p = Path(self.data_folder)
+        if not p.is_absolute():
+            p = Path(__file__).parent / p
+        return p
+
+    def ensure_data_folder(self) -> None:
+        self.data_path.mkdir(parents=True, exist_ok=True)
+
+
 class DeviceStatus(Enum):
     """Device status enumeration"""
     ONLINE = "online"
@@ -298,7 +330,7 @@ Screen {
 
 #menu-bar {
     dock: top;
-    height: 3;
+    height: 4;
     background: $surface-darken-1;
 }
 
@@ -387,10 +419,18 @@ Input {
     color: $text-muted;
 }
 
-#monitor-status {
+#monitor-info {
     margin-left: 2;
     padding: 0 2;
+    align: left middle;
+}
+
+#monitor-status {
     text-style: bold;
+}
+
+#monitor-last-scan-label {
+    color: $text-muted;
 }
 
 #monitor-status.monitor-active {
@@ -478,7 +518,9 @@ class MenuBar(Horizontal):
         yield Button("Monitor", id="menu-monitor", classes="menu-button")
         yield Button("Groups", id="menu-groups", classes="menu-button")
         yield Button("Setup", id="menu-setup", classes="menu-button")
-        yield Label("MONITORING: STOPPED", id="monitor-status", classes="monitor-stopped")
+        with Vertical(id="monitor-info"):
+            yield Label("MONITORING: STOPPED", id="monitor-status", classes="monitor-stopped")
+            yield Label("", id="monitor-last-scan-label")
 
 
 class FileMenuScreen(ModalScreen):
@@ -516,9 +558,10 @@ class SaveAsScreen(ModalScreen):
 
     BINDINGS = [("escape", "dismiss", "Close")]
 
-    def __init__(self, current_name: str = "site_data"):
+    def __init__(self, current_name: str = "site_data", data_folder: str = "data"):
         super().__init__()
         self.current_name = current_name
+        self.data_folder = data_folder
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="modal-container"):
@@ -527,6 +570,7 @@ class SaveAsScreen(ModalScreen):
             yield Label("Filename:")
             yield Input(value=self.current_name, placeholder="Enter filename", id="save-filename")
             yield Label("(Extension .json will be added automatically)", classes="device-unknown")
+            yield Label(f"Save location: {self.data_folder}", classes="device-unknown")
             with Horizontal(classes="modal-buttons"):
                 yield Button("Save", id="btn-save", variant="primary")
                 yield Button("Cancel", id="btn-cancel")
@@ -709,9 +753,10 @@ class SetupMenuScreen(ModalScreen):
 
     BINDINGS = [("escape", "dismiss", "Close")]
 
-    def __init__(self, site_data: 'SiteData'):
+    def __init__(self, site_data: 'SiteData', app_config: 'AppConfig'):
         super().__init__()
         self.site_data = site_data
+        self.app_config = app_config
         self.network_interfaces = get_network_interfaces()
 
     def compose(self) -> ComposeResult:
@@ -736,6 +781,10 @@ class SetupMenuScreen(ModalScreen):
             yield Label("Scan Frequency (seconds):")
             yield Input(value=str(self.site_data.scan_frequency), id="scan-frequency", type="number")
             yield Rule()
+            yield Label("Data Folder:")
+            yield Input(value=self.app_config.data_folder, placeholder="e.g. data or C:\\MyData", id="data-folder")
+            yield Label("(Relative paths are resolved from the application directory)", classes="device-unknown")
+            yield Rule()
             yield Label("Display Columns:")
             yield Checkbox("Device Type", value=self.site_data.show_device_type, id="col-type")
             yield Checkbox("IP Address", value=self.site_data.show_ip_address, id="col-ip")
@@ -759,6 +808,7 @@ class SetupMenuScreen(ModalScreen):
                 'name': self.query_one("#site-name", Input).value or "Untitled Site",
                 'network_interface': selected_interface,
                 'frequency': int(self.query_one("#scan-frequency", Input).value or 60),
+                'data_folder': self.query_one("#data-folder", Input).value.strip() or "data",
                 'show_device_type': self.query_one("#col-type", Checkbox).value,
                 'show_ip_address': self.query_one("#col-ip", Checkbox).value,
                 'show_mac_address': self.query_one("#col-mac", Checkbox).value,
@@ -1220,6 +1270,8 @@ class EasyIPTUI(App):
         self.site_data = SiteData()
         self.current_file = None
         self.monitoring = False
+        self.app_config = AppConfig.load()
+        self.app_config.ensure_data_folder()
         self._monitor_timer = None
         self._is_monitoring_scan = False  # Flag to distinguish monitor scans from manual scans
         self._row_keys: List[str] = []  # Map row index to key
@@ -1322,6 +1374,16 @@ class EasyIPTUI(App):
             status_bar.update_last_scan(self.site_data.last_scan or "")
         except:
             pass  # Status bar may not be mounted yet
+        try:
+            label = self.query_one("#monitor-last-scan-label", Label)
+            last_scan = self.site_data.last_scan
+            if last_scan:
+                dt = datetime.fromisoformat(last_scan)
+                label.update(f"Last scan: {dt.strftime('%H:%M:%S')}")
+            else:
+                label.update("")
+        except:
+            pass
 
     def _build_row_data(self, device, is_group_header: bool = False, group_text=None, stats_text=None):
         """Build row data based on column visibility settings"""
@@ -1547,7 +1609,7 @@ class EasyIPTUI(App):
 
     def _load_site(self) -> None:
         """Load site from file using file browser"""
-        self.push_screen(FileBrowserScreen(), self._handle_load_file)
+        self.push_screen(FileBrowserScreen(start_path=self.app_config.data_path), self._handle_load_file)
 
     def _handle_load_file(self, filepath: Optional[Path]) -> None:
         """Handle file selection from browser"""
@@ -1573,12 +1635,18 @@ class EasyIPTUI(App):
     def _save_site_as(self) -> None:
         """Save site to new file with filename dialog"""
         current_name = self.current_file.stem if self.current_file else "site_data"
-        self.push_screen(SaveAsScreen(current_name), self._handle_save_as)
+        self.push_screen(
+            SaveAsScreen(current_name, data_folder=str(self.app_config.data_path)),
+            self._handle_save_as
+        )
 
     def _handle_save_as(self, filename: Optional[str]) -> None:
         """Handle save as dialog result"""
         if filename:
             path = Path(filename)
+            if not path.is_absolute():
+                self.app_config.ensure_data_folder()
+                path = self.app_config.data_path / path
             self._save_to_path(path)
 
     def _save_to_path(self, path: Path) -> None:
@@ -1859,7 +1927,7 @@ class EasyIPTUI(App):
     # Setup menu actions
     def action_show_setup_menu(self) -> None:
         self.push_screen(
-            SetupMenuScreen(self.site_data),
+            SetupMenuScreen(self.site_data, self.app_config),
             self._handle_setup_menu
         )
 
@@ -1874,6 +1942,13 @@ class EasyIPTUI(App):
 
             # Update scan frequency
             self.site_data.scan_frequency = result['frequency']
+
+            # Update data folder
+            new_folder = result.get('data_folder', 'data')
+            if new_folder != self.app_config.data_folder:
+                self.app_config.data_folder = new_folder
+                self.app_config.ensure_data_folder()
+                self.app_config.save()
 
             # Update column visibility
             self.site_data.show_device_type = result['show_device_type']
@@ -1937,18 +2012,22 @@ class EasyIPTUI(App):
             filtered = {k: v for k, v in device_dict.items() if k in fields}
             export_data.append(filtered)
 
-        # Get filename from options
+        # Get filename from options, resolve into data folder if not absolute
         base_filename = options.get('filename', 'export')
+        export_base = Path(base_filename)
+        if not export_base.is_absolute():
+            self.app_config.ensure_data_folder()
+            export_base = self.app_config.data_path / base_filename
 
         # Export to file with appropriate extension
         try:
             if options['format'] == 'json':
-                filename = f"{base_filename}.json"
+                filename = str(export_base) + ".json"
                 with open(filename, 'w') as f:
                     json.dump(export_data, f, indent=2)
             else:
                 import csv
-                filename = f"{base_filename}.csv"
+                filename = str(export_base) + ".csv"
                 with open(filename, 'w', newline='') as f:
                     if export_data:
                         writer = csv.DictWriter(f, fieldnames=fields)
