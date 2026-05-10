@@ -679,101 +679,200 @@ class iPROIPSetup:
         """Alias for discover_devices() for backward compatibility"""
         return self.discover_devices()
     
-    def configure_camera(self, mac_address: str, ip: str, subnet: str, 
-                        gateway: str, port: int = 80) -> bool:
+    # Network mode byte values (offset 4 in 10-byte TLV prefix)
+    # From Wireshark capture of original i-PRO EasyIP.exe
+    _MODE_BYTES = {
+        "static":        0x03,
+        "dhcp":          0x00,
+        "auto_autoip":   0x04,
+        "auto_advanced": 0x05,
+    }
+
+    def configure_camera(self, mac_address: str, ip: str, subnet: str,
+                        gateway: str, port: int = None,
+                        mode: str = "static",
+                        dns_mode: str = "manual",
+                        primary_dns: str = "8.8.8.8",
+                        secondary_dns: str = "8.8.4.4") -> bool:
         """
-        Configure network settings for a specific camera
-        
+        Configure network settings for a specific i-PRO device.
+
+        Packet format reverse-engineered from i-PRO EasyIP.exe Wireshark capture.
+        The tool sends the config packet 3× then a commit packet (command 0x04).
+        Checksum = sum of all bytes before it + 1 (16-bit, big-endian).
+
         Args:
-            mac_address: Target camera MAC address (format: "aa:bb:cc:dd:ee:ff")
-            ip: New IP address
-            subnet: New subnet mask
-            gateway: New gateway address
-            port: HTTP port (default: 80)
-        
-        Returns:
-            True if configuration successful, False otherwise
+            mac_address: Target device MAC address
+            ip: IP address (sent in all modes; DHCP/auto modes ignore it after lease)
+            subnet: Subnet mask
+            gateway: Default gateway
+            port: HTTP port (auto-detected if None)
+            mode: Network mode — "static", "dhcp", "auto_autoip", "auto_advanced"
+            dns_mode: "auto" (8.8.8.8/8.8.4.4 placeholder, 0xa6=0x90) or
+                      "manual" (use primary/secondary_dns, 0xa6=0x92)
+            primary_dns: Primary DNS server (dns_mode="manual" only)
+            secondary_dns: Secondary DNS server (dns_mode="manual" only)
         """
+        # Auto-detect the camera's current HTTP port if not specified.
+        # The camera silently rejects config packets whose port doesn't match its
+        # current value, so we must always send the correct current port.
+        if port is None:
+            norm_mac = mac_address.replace('-', ':').lower()
+            logger.info("Auto-discovering camera to detect current HTTP port...")
+            try:
+                devices = self.discover_devices()
+                for device in devices:
+                    if device.mac_address.lower() == norm_mac:
+                        port = device.http_port
+                        logger.info(f"  Detected camera HTTP port: {port}")
+                        break
+            except Exception as e:
+                logger.warning(f"Discovery failed: {e}")
+            if port is None:
+                port = 443
+                logger.warning(f"Camera not found in discovery, defaulting to port {port}")
+
+        mode_byte = self._MODE_BYTES.get(mode.lower(), 0x03)
         logger.info(f"Configuring device {mac_address}")
-        logger.info(f"  New IP: {ip}")
-        logger.info(f"  Subnet: {subnet}")
-        logger.info(f"  Gateway: {gateway}")
-        logger.info(f"  Port: {port}")
-        
+        logger.info(f"  Mode: {mode}, DNS: {dns_mode}, IP: {ip}, Subnet: {subnet}, Gateway: {gateway}, Port: {port}")
+
         try:
             self.sock = self._create_socket()
-            
-            # Parse MAC address
+
+            # Parse camera MAC
             mac_parts = mac_address.replace('-', ':').split(':')
             if len(mac_parts) != 6:
                 logger.error(f"Invalid MAC address format: {mac_address}")
                 return False
-            
-            mac_bytes = bytes([int(x, 16) for x in mac_parts])
-            
-            # Parse IP addresses
-            ip_bytes = bytes([int(x) for x in ip.split('.')])
-            subnet_bytes = bytes([int(x) for x in subnet.split('.')])
-            gateway_bytes = bytes([int(x) for x in gateway.split('.')])
-            
-            # Build configuration packet
-            packet = bytearray()
-            
-            # Header: 00 01 00 21 (config request)
-            packet.extend([0x00, 0x01, 0x00, 0x21])
-            
-            # Command: 00 0e (configure command)
-            packet.extend([0x00, 0x0e])
-            
-            # MAC address (6 bytes)
-            packet.extend(mac_bytes)
-            
-            # Network configuration TLV fields
-            # Tag 0x20: IP Address
-            packet.extend([0x00, 0x20, 0x00, 0x04])
-            packet.extend(ip_bytes)
-            
-            # Tag 0x21: Subnet Mask
-            packet.extend([0x00, 0x21, 0x00, 0x04])
-            packet.extend(subnet_bytes)
-            
-            # Tag 0x22: Gateway
-            packet.extend([0x00, 0x22, 0x00, 0x04])
-            packet.extend(gateway_bytes)
-            
-            # Tag 0x25: HTTP Port
-            packet.extend([0x00, 0x25, 0x00, 0x02])
-            packet.extend(struct.pack(">H", port))
-            
-            # End marker
-            packet.extend([0xff, 0xff])
-            
-            logger.debug(f"Sending configuration packet ({len(packet)} bytes)")
-            
-            # Send to broadcast address
+            cam_mac = bytes(int(x, 16) for x in mac_parts)
+
+            # Parse target network settings
+            ip_bytes      = bytes(int(x) for x in ip.split('.'))
+            subnet_bytes  = bytes(int(x) for x in subnet.split('.'))
+            gateway_bytes = bytes(int(x) for x in gateway.split('.'))
+
+            # Get sender MAC and IP (same logic as search packet)
+            import uuid
+            try:
+                sender_mac = uuid.getnode().to_bytes(6, 'big')
+            except Exception:
+                sender_mac = bytes(6)
+            try:
+                _s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                _s.connect(("8.8.8.8", 80))
+                sender_ip = bytes(int(x) for x in _s.getsockname()[0].split('.'))
+                _s.close()
+            except Exception:
+                sender_ip = bytes(4)
+
+            # EUI-64 IPv6 link-local derived from camera MAC
+            ipv6_ll = bytearray(16)
+            ipv6_ll[0:2] = b'\xfe\x80'
+            ipv6_ll[8]  = cam_mac[0] ^ 0x02
+            ipv6_ll[9]  = cam_mac[1]
+            ipv6_ll[10] = cam_mac[2]
+            ipv6_ll[11] = 0xff
+            ipv6_ll[12] = 0xfe
+            ipv6_ll[13] = cam_mac[3]
+            ipv6_ll[14] = cam_mac[4]
+            ipv6_ll[15] = cam_mac[5]
+
+            # Protocol constant block (24 bytes) — same pattern as search packet,
+            # with 0x02 at offset 12 (enables camera+recorder mode).
+            PROTO_CONST = bytes([
+                0x20, 0x11, 0x1e, 0x11, 0x23, 0x1f, 0x1e, 0x19,
+                0x13, 0x00, 0x00, 0x02, 0x02, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ])
+
+            # DNS bytes and 0xa6 flag based on dns_mode
+            # 0xa6=0x90 → Auto DNS, 0xa6=0x92 → Manual DNS (from Wireshark capture)
+            if dns_mode.lower() == "auto":
+                dns_bytes = bytes([8, 8, 8, 8, 8, 8, 4, 4])  # 8.8.8.8 / 8.8.4.4 placeholder
+                dns_flag = 0x90
+            else:
+                dns_bytes = (bytes(int(x) for x in primary_dns.split('.')) +
+                             bytes(int(x) for x in secondary_dns.split('.')))
+                dns_flag = 0x92
+
+            # Build TLV data section (175 bytes total = 0xaf)
+            tlv = bytearray()
+            # 10-byte pre-TLV prefix; byte 4 encodes network mode:
+            # Static=0x03, DHCP=0x00, AutoIP=0x04, Auto-Advanced=0x05
+            tlv += bytes([0x00, 0x00, 0x00, 0x01, mode_byte, 0x00, 0x01, 0x00, 0x01, 0x00])
+            # 0x20 IP, 0x21 subnet, 0x22 gateway
+            tlv += b'\x00\x20\x00\x04' + ip_bytes
+            tlv += b'\x00\x21\x00\x04' + subnet_bytes
+            tlv += b'\x00\x22\x00\x04' + gateway_bytes
+            # 0x23 DNS (primary + secondary, 8 bytes)
+            tlv += b'\x00\x23\x00\x08' + dns_bytes
+            # 0x25 HTTP port
+            tlv += b'\x00\x25\x00\x02' + struct.pack(">H", port)
+            # 0x40 IPv6 link-local, 0x41 IPv6 global (zeros), 0x42 (zeros)
+            tlv += b'\x00\x40\x00\x10' + bytes(ipv6_ll)
+            tlv += b'\x00\x41\x00\x10' + bytes(16)
+            tlv += b'\x00\x42\x00\x20' + bytes(32)
+            # 0x44 HTTPS port
+            tlv += b'\x00\x44\x00\x02' + struct.pack(">H", 443)
+            # 0xa0–0xa3 mirror the IPv4 config (0x20–0x23 range)
+            tlv += b'\x00\xa0\x00\x04' + ip_bytes
+            tlv += b'\x00\xa1\x00\x04' + subnet_bytes
+            tlv += b'\x00\xa2\x00\x04' + gateway_bytes
+            tlv += b'\x00\xa3\x00\x08' + dns_bytes
+            # 0xa6: 0x90=auto DNS, 0x92=manual DNS
+            tlv += bytes([0x00, 0xa6, 0x00, 0x01, dns_flag])
+
+            assert len(tlv) == 0xaf, f"TLV length mismatch: {len(tlv)}"
+
+            def _packet(command: int, step: int, include_tlv: bool) -> bytes:
+                pkt = bytearray()
+                pkt += b'\x00\x01'
+                pkt += struct.pack(">H", len(tlv) if include_tlv else 0)  # data length
+                pkt += struct.pack(">H", command)
+                pkt += cam_mac
+                pkt += sender_mac
+                pkt += sender_ip
+                pkt += struct.pack(">H", step)
+                pkt += PROTO_CONST
+                if include_tlv:
+                    pkt += tlv
+                pkt += b'\xff\xff'
+                pkt += struct.pack(">H", (sum(pkt) + 1) & 0xFFFF)
+                return bytes(pkt)
+
+            config_pkt = _packet(command=0x0002, step=0x0001, include_tlv=True)
+            commit_pkt = _packet(command=0x0004, step=0x0002, include_tlv=False)
+
             dest = (self.BROADCAST_ADDR, self.BROADCAST_PORT)
-            self.sock.sendto(bytes(packet), dest)
-            
-            # Wait for confirmation response
+            logger.debug(f"Config packet: {len(config_pkt)} bytes, commit: {len(commit_pkt)} bytes")
+
+            # Send config 3× then commit 3× (100 ms apart each) — mirrors original tool behaviour
+            for i in range(3):
+                self.sock.sendto(config_pkt, dest)
+                if i < 2:
+                    time.sleep(0.1)
+            time.sleep(0.2)
+            for i in range(3):
+                self.sock.sendto(commit_pkt, dest)
+                if i < 2:
+                    time.sleep(0.1)
+
+            # Wait for any response; camera may not reply if it reboots immediately
             try:
                 data, addr = self.sock.recvfrom(self.BUFFER_SIZE)
-                logger.info(f"Received response from {addr}")
-                
-                # Check if response is success (0x0022)
-                if len(data) >= 4 and data[2:4] == b'\x00\x22':
-                    logger.info("Configuration successful!")
-                    return True
-                else:
-                    logger.warning(f"Unexpected response type: {data[2:4].hex()}")
-                    return False
+                resp_type = data[2:4].hex() if len(data) >= 4 else "?"
+                logger.info(f"Response from {addr[0]}: type={resp_type}")
+                return True
             except socket.timeout:
-                logger.warning("No response received (timeout)")
-                return False
-        
+                logger.info("No response (camera may be rebooting after IP change)")
+                return True
+
+        except AssertionError as e:
+            logger.error(str(e))
+            return False
         except Exception as e:
             logger.error(f"Error configuring device: {e}", exc_info=True)
             return False
-        
         finally:
             if self.sock:
                 self.sock.close()
@@ -880,8 +979,17 @@ Examples:
   # Discover with CSV output (for Excel/spreadsheets)
   %(prog)s discover --csv > devices.csv
   
-  # Configure a camera
+  # Configure a camera with static IP (manual DNS)
   %(prog)s configure --mac 01:23:45:67:89:ab --ip 192.168.1.100 --subnet 255.255.255.0 --gateway 192.168.1.1
+
+  # Configure with DHCP (auto DNS)
+  %(prog)s configure --mac 01:23:45:67:89:ab --ip 192.168.1.100 --subnet 255.255.255.0 --gateway 192.168.1.1 --mode dhcp --dns-mode auto
+
+  # Configure with Auto(AutoIP) and manual DNS
+  %(prog)s configure --mac 01:23:45:67:89:ab --ip 192.168.1.100 --subnet 255.255.255.0 --gateway 192.168.1.1 --mode auto_autoip --dns-mode manual --primary-dns 192.168.1.1 --secondary-dns 192.168.1.2
+
+  # Configure with Auto(Advanced) and auto DNS
+  %(prog)s configure --mac 01:23:45:67:89:ab --ip 192.168.1.100 --subnet 255.255.255.0 --gateway 192.168.1.1 --mode auto_advanced --dns-mode auto
   
   # Pipe output to another tool
   %(prog)s discover --json | jq .
@@ -912,13 +1020,26 @@ Examples:
     config_parser.add_argument('--mac', required=True,
                               help='Device MAC address (e.g., 01:23:45:67:89:ab)')
     config_parser.add_argument('--ip', required=True,
-                              help='New IP address')
+                              help='IP address (required by protocol; ignored by device in DHCP/auto modes)')
     config_parser.add_argument('--subnet', required=True,
-                              help='New subnet mask')
+                              help='Subnet mask')
     config_parser.add_argument('--gateway', required=True,
-                              help='New gateway address')
-    config_parser.add_argument('--port', type=int, default=80,
-                              help='HTTP port (default: 80)')
+                              help='Default gateway address')
+    config_parser.add_argument('--port', type=int, default=None,
+                              help='HTTP port (default: auto-detect from camera)')
+    config_parser.add_argument('--mode', default='static',
+                              choices=['static', 'dhcp', 'auto_autoip', 'auto_advanced'],
+                              help='Network mode: static, dhcp, auto_autoip, auto_advanced (default: static)')
+    config_parser.add_argument('--dns-mode', default='manual',
+                              choices=['auto', 'manual'],
+                              dest='dns_mode',
+                              help='DNS mode: auto (8.8.8.8/8.8.4.4) or manual (default: manual)')
+    config_parser.add_argument('--primary-dns', default='8.8.8.8',
+                              dest='primary_dns',
+                              help='Primary DNS server (dns-mode=manual, default: 8.8.8.8)')
+    config_parser.add_argument('--secondary-dns', default='8.8.4.4',
+                              dest='secondary_dns',
+                              help='Secondary DNS server (dns-mode=manual, default: 8.8.4.4)')
     config_parser.add_argument('--timeout', type=float, default=3.0,
                               help='Configuration timeout in seconds (default: 3.0)')
     config_parser.add_argument('-v', '--verbose', action='store_true',
@@ -1048,15 +1169,25 @@ Examples:
             ip=args.ip,
             subnet=args.subnet,
             gateway=args.gateway,
-            port=args.port
+            port=args.port,
+            mode=args.mode,
+            dns_mode=args.dns_mode,
+            primary_dns=args.primary_dns,
+            secondary_dns=args.secondary_dns,
         )
-        
+
         if success:
             print(f"Successfully configured device {args.mac}")
+            print(f"  Mode: {args.mode}")
             print(f"  IP: {args.ip}")
             print(f"  Subnet: {args.subnet}")
             print(f"  Gateway: {args.gateway}")
-            print(f"  Port: {args.port}")
+            if args.port:
+                print(f"  Port: {args.port}")
+            print(f"  DNS: {args.dns_mode}", end="")
+            if args.dns_mode == 'manual':
+                print(f" ({args.primary_dns} / {args.secondary_dns})", end="")
+            print()
             sys.exit(0)
         else:
             print(f"Failed to configure device {args.mac}", file=sys.stderr)

@@ -49,17 +49,21 @@ _APP_CONFIG_PATH = Path(__file__).parent / "app_config.json"
 class AppConfig:
     """Application-level settings, persisted independently of site data."""
     data_folder: str = "data"
+    theme: str = "textual-dark"
 
     def save(self) -> None:
         with open(_APP_CONFIG_PATH, 'w') as f:
-            json.dump({'data_folder': self.data_folder}, f, indent=2)
+            json.dump({'data_folder': self.data_folder, 'theme': self.theme}, f, indent=2)
 
     @classmethod
     def load(cls) -> 'AppConfig':
         try:
             with open(_APP_CONFIG_PATH, 'r') as f:
                 data = json.load(f)
-                return cls(data_folder=data.get('data_folder', 'data'))
+                return cls(
+                    data_folder=data.get('data_folder', 'data'),
+                    theme=data.get('theme', 'textual-dark'),
+                )
         except Exception:
             return cls()
 
@@ -185,6 +189,8 @@ class SiteData:
     last_scan: Optional[str] = None
     # Network interface setting
     network_interface: str = "0.0.0.0"  # Default to all interfaces
+    # Deep check setting
+    deep_check_enabled: bool = False
     # Column visibility settings
     show_device_type: bool = True
     show_ip_address: bool = True
@@ -202,6 +208,7 @@ class SiteData:
             'scan_frequency': self.scan_frequency,
             'last_scan': self.last_scan,
             'network_interface': self.network_interface,
+            'deep_check_enabled': self.deep_check_enabled,
             'show_device_type': self.show_device_type,
             'show_ip_address': self.show_ip_address,
             'show_mac_address': self.show_mac_address,
@@ -221,6 +228,7 @@ class SiteData:
             scan_frequency=data.get('scan_frequency', 60),
             last_scan=data.get('last_scan'),
             network_interface=data.get('network_interface', '0.0.0.0'),
+            deep_check_enabled=data.get('deep_check_enabled', False),
             show_device_type=data.get('show_device_type', True),
             show_ip_address=data.get('show_ip_address', True),
             show_mac_address=data.get('show_mac_address', True),
@@ -379,6 +387,105 @@ Input {
     margin: 1 0;
 }
 
+/* ── Configure IP dialog ─────────────────────────────────── */
+#configure-ip-modal {
+    width: 84;
+}
+
+#configure-ip-list {
+    height: 10;
+    border: solid $primary;
+    margin: 1 0;
+}
+
+.configure-device-row {
+    height: auto;
+    padding: 0 0;
+    align: left middle;
+}
+
+.configure-device-row Checkbox {
+    width: 1fr;
+}
+
+.configure-device-row Input {
+    width: 20;
+    margin: 0;
+}
+
+.conf-base-row {
+    height: auto;
+    align: left middle;
+}
+
+.conf-base-row Input {
+    width: 1fr;
+    margin-right: 1;
+}
+
+.conf-base-row Button {
+    min-width: 14;
+}
+
+#configure-progress {
+    margin: 1 0;
+}
+
+.conf-result-ok  { color: $success; }
+.conf-result-fail { color: $error; }
+
+#dns-manual-fields {
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+#auto-assign-section {
+    height: auto;
+}
+
+.conf-mode-label {
+    margin: 1 0 0 0;
+}
+
+#net-mode-select {
+    margin: 0 0 1 0;
+}
+
+#dns-mode-select {
+    margin: 0 0 0 0;
+}
+
+/* ── Move devices dialog ─────────────────────────────────── */
+#move-device-modal {
+    width: 72;
+}
+
+#move-device-list {
+    height: 14;
+    border: solid $primary;
+    margin: 1 0;
+}
+
+.move-device-row {
+    height: auto;
+    padding: 0 1;
+}
+
+.move-device-row Checkbox {
+    width: 1fr;
+}
+
+.move-sel-buttons {
+    height: auto;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.move-sel-buttons Button {
+    min-width: 10;
+    margin-right: 1;
+}
+
 .export-options {
     margin: 1 0;
     padding: 0 1;
@@ -513,11 +620,12 @@ class MenuBar(Horizontal):
     """Custom menu bar widget"""
 
     def compose(self) -> ComposeResult:
-        yield Button("File", id="menu-file", classes="menu-button")
-        yield Button("Scan", id="menu-scan", classes="menu-button")
-        yield Button("Monitor", id="menu-monitor", classes="menu-button")
-        yield Button("Groups", id="menu-groups", classes="menu-button")
-        yield Button("Setup", id="menu-setup", classes="menu-button")
+        yield Button("File",      id="menu-file",      classes="menu-button")
+        yield Button("Scan",      id="menu-scan",      classes="menu-button")
+        yield Button("Monitor",   id="menu-monitor",   classes="menu-button")
+        yield Button("Groups",    id="menu-groups",    classes="menu-button")
+        yield Button("Setup",     id="menu-setup",     classes="menu-button")
+        yield Button("Config IP", id="menu-config-ip", classes="menu-button")
         with Vertical(id="monitor-info"):
             yield Label("MONITORING: STOPPED", id="monitor-status", classes="monitor-stopped")
             yield Label("", id="monitor-last-scan-label")
@@ -569,7 +677,7 @@ class SaveAsScreen(ModalScreen):
             yield Rule()
             yield Label("Filename:")
             yield Input(value=self.current_name, placeholder="Enter filename", id="save-filename")
-            yield Label("(Extension .json will be added automatically)", classes="device-unknown")
+            yield Label("(Extension .ezip will be added automatically)", classes="device-unknown")
             yield Label(f"Save location: {self.data_folder}", classes="device-unknown")
             with Horizontal(classes="modal-buttons"):
                 yield Button("Save", id="btn-save", variant="primary")
@@ -583,9 +691,9 @@ class SaveAsScreen(ModalScreen):
             if not filename:
                 self.notify("Please enter a filename", severity="warning")
                 return
-            # Add .json extension if not present
-            if not filename.endswith('.json'):
-                filename = f"{filename}.json"
+            # Add .ezip extension if not present
+            if not filename.endswith('.ezip'):
+                filename = f"{filename}.ezip"
             self.dismiss(filename)
 
 
@@ -652,7 +760,7 @@ class FileBrowserScreen(ModalScreen):
                     btn_id = self._sanitize_id(item.name, "dir")
                     btn = Button(f"[Dir] {item.name}", id=btn_id, classes="file-item")
                     file_list.mount(btn)
-                elif item.suffix.lower() == '.json':
+                elif item.suffix.lower() == '.ezip':
                     btn_id = self._sanitize_id(item.name, "file")
                     btn = Button(f"      {item.name}", id=btn_id, classes="file-item")
                     file_list.mount(btn)
@@ -778,6 +886,9 @@ class SetupMenuScreen(ModalScreen):
             yield Select(interface_options, id="network-interface", value=self.site_data.network_interface)
             yield Label("(Select specific interface if auto-detection fails)", classes="device-unknown")
             yield Rule()
+            yield Checkbox("Deep Check", value=self.site_data.deep_check_enabled, id="deep-check")
+            yield Label("Query the webserver on each camera to confirm it is responding.", classes="device-unknown")
+            yield Rule()
             yield Label("Scan Frequency (seconds):")
             yield Input(value=str(self.site_data.scan_frequency), id="scan-frequency", type="number")
             yield Rule()
@@ -807,6 +918,7 @@ class SetupMenuScreen(ModalScreen):
             result = {
                 'name': self.query_one("#site-name", Input).value or "Untitled Site",
                 'network_interface': selected_interface,
+                'deep_check_enabled': self.query_one("#deep-check", Checkbox).value,
                 'frequency': int(self.query_one("#scan-frequency", Input).value or 60),
                 'data_folder': self.query_one("#data-folder", Input).value.strip() or "data",
                 'show_device_type': self.query_one("#col-type", Checkbox).value,
@@ -879,7 +991,7 @@ class RemoveGroupScreen(ModalScreen):
 
 
 class MoveDeviceScreen(ModalScreen):
-    """Move device between groups modal"""
+    """Move one or more devices to a group."""
 
     BINDINGS = [("escape", "dismiss", "Close")]
 
@@ -888,28 +1000,78 @@ class MoveDeviceScreen(ModalScreen):
         self.devices = devices  # List of (mac, name, current_group)
         self.groups = groups
 
+    def _mid(self, mac: str) -> str:
+        return mac.replace(":", "")
+
     def compose(self) -> ComposeResult:
-        with Vertical(classes="modal-container"):
-            yield Label("Move Device", classes="modal-title")
+        with Vertical(classes="modal-container", id="move-device-modal"):
+            yield Label("Move Devices to Group", classes="modal-title")
             yield Rule()
-            yield Label("Select device:")
-            device_options = [(f"{d[1]} ({d[0]}) - {d[2]}", d[0]) for d in self.devices]
-            yield Select(device_options, id="device-select")
-            yield Label("Move to group:")
+
+            yield Label(f"Select devices to move ({len(self.devices)} total):")
+            with ScrollableContainer(id="move-device-list"):
+                for mac, name, group in self.devices:
+                    with Horizontal(classes="move-device-row"):
+                        yield Checkbox(
+                            f"{name}  ({group})",
+                            value=False,
+                            id=f"dev-{self._mid(mac)}",
+                        )
+
+            with Horizontal(classes="move-sel-buttons"):
+                yield Button("All",    id="btn-sel-all",    variant="default")
+                yield Button("None",   id="btn-sel-none",   variant="default")
+                yield Button("Invert", id="btn-sel-invert", variant="default")
+
+            yield Rule()
+            yield Label("Move selected devices to:")
             group_options = [(g, g) for g in self.groups]
             yield Select(group_options, id="target-group")
+
             with Horizontal(classes="modal-buttons"):
-                yield Button("Move", id="btn-move", variant="primary")
-                yield Button("Cancel", id="btn-cancel")
+                yield Button("Move Selected", id="btn-move", variant="primary")
+                yield Button("Cancel",        id="btn-cancel")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-cancel":
-            self.dismiss()
-        elif event.button.id == "btn-move":
-            device_select = self.query_one("#device-select", Select)
-            group_select = self.query_one("#target-group", Select)
-            if device_select.value != Select.BLANK and group_select.value != Select.BLANK:
-                self.dismiss((device_select.value, group_select.value))
+        bid = event.button.id
+        if bid == "btn-cancel":
+            self.dismiss(None)
+        elif bid == "btn-sel-all":
+            for mac, _, _ in self.devices:
+                try:
+                    self.query_one(f"#dev-{self._mid(mac)}", Checkbox).value = True
+                except Exception:
+                    pass
+        elif bid == "btn-sel-none":
+            for mac, _, _ in self.devices:
+                try:
+                    self.query_one(f"#dev-{self._mid(mac)}", Checkbox).value = False
+                except Exception:
+                    pass
+        elif bid == "btn-sel-invert":
+            for mac, _, _ in self.devices:
+                try:
+                    cb = self.query_one(f"#dev-{self._mid(mac)}", Checkbox)
+                    cb.value = not cb.value
+                except Exception:
+                    pass
+        elif bid == "btn-move":
+            self._do_move()
+
+    def _do_move(self) -> None:
+        target = self.query_one("#target-group", Select)
+        if target.value == Select.BLANK:
+            self.notify("Select a target group first", severity="warning")
+            return
+        selected = [
+            (mac, str(target.value))
+            for mac, _, _ in self.devices
+            if self.query_one(f"#dev-{self._mid(mac)}", Checkbox).value
+        ]
+        if not selected:
+            self.notify("No devices selected", severity="warning")
+            return
+        self.dismiss(selected)
 
 
 class ManualAddScreen(ModalScreen):
@@ -976,6 +1138,271 @@ class ManualAddScreen(ModalScreen):
                 added_manually=True
             )
             self.dismiss((device, group_select.value))
+
+
+class ConfigureIPScreen(ModalScreen):
+    """Configure IP addresses for one or more tracked cameras."""
+
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def __init__(self, devices: List['TrackedDevice'], preselected_mac: Optional[str] = None,
+                 base_ip: Optional[str] = None):
+        super().__init__()
+        self.devices = devices
+        self.preselected_mac = preselected_mac
+        first = devices[0] if devices else None
+        self._default_subnet  = first.subnet_mask if first else "255.255.255.0"
+        self._default_gateway = first.gateway    if first else ""
+        self._net_mode = "static"
+        self._dns_mode = "auto"
+        self._initial_base_ip = base_ip
+
+    def _mid(self, mac: str) -> str:
+        return mac.replace(":", "")
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="modal-container", id="configure-ip-modal"):
+            yield Label("Configure IP Addresses", classes="modal-title")
+            yield Rule()
+
+            # ── Network mode ──────────────────────────────────────────
+            yield Label("Network Mode:")
+            yield Select(
+                options=[
+                    ("Static IP",        "static"),
+                    ("DHCP",             "dhcp"),
+                    ("Auto (AutoIP)",    "auto_autoip"),
+                    ("Auto (Advanced)",  "auto_advanced"),
+                ],
+                value="static",
+                id="net-mode-select",
+            )
+            yield Rule()
+
+            # ── Shared network settings ───────────────────────────────
+            yield Label("Shared Network Settings:")
+            yield Label("Subnet Mask:")
+            yield Input(value=self._default_subnet, placeholder="255.255.255.0", id="shared-subnet")
+            yield Label("Gateway:")
+            yield Input(value=self._default_gateway, placeholder="192.168.1.1", id="shared-gateway")
+
+            # ── DNS ───────────────────────────────────────────────────
+            yield Label("DNS Mode:", classes="conf-mode-label")
+            yield Select(
+                options=[("Auto", "auto"), ("Manual", "manual")],
+                value="auto",
+                id="dns-mode-select",
+            )
+            with Vertical(id="dns-manual-fields"):
+                yield Label("Primary DNS:")
+                yield Input(value="8.8.8.8", placeholder="8.8.8.8", id="primary-dns")
+                yield Label("Secondary DNS:")
+                yield Input(value="8.8.4.4", placeholder="8.8.4.4", id="secondary-dns")
+            yield Rule()
+
+            # ── Auto-assign (static mode only) ───────────────────────
+            with Vertical(id="auto-assign-section"):
+                yield Label("Auto-assign from base address:")
+                with Horizontal(classes="conf-base-row"):
+                    yield Input(placeholder="e.g. 192.168.1.100", id="base-ip")
+                    yield Button("Auto-assign ▶", id="btn-auto-assign")
+                with Horizontal(classes="conf-base-row"):
+                    yield Button("Select All",  id="btn-sel-all",  variant="default")
+                    yield Button("Select None", id="btn-sel-none", variant="default")
+                yield Rule()
+
+            # ── Device list ───────────────────────────────────────────
+            yield Label(f"Devices ({len(self.devices)}) — tick to configure:")
+            with ScrollableContainer(id="configure-ip-list"):
+                for device in self.devices:
+                    mid = self._mid(device.mac_address)
+                    is_pre = (
+                        self.preselected_mac is None
+                        or device.mac_address.lower() == (self.preselected_mac or "").lower()
+                    )
+                    with Horizontal(classes="configure-device-row"):
+                        yield Checkbox(
+                            f"{device.device_name} ({device.ip_address})",
+                            value=is_pre,
+                            id=f"chk-{mid}",
+                        )
+                        yield Input(placeholder="New IP", id=f"new-ip-{mid}")
+
+            yield Rule()
+            with Horizontal(classes="modal-buttons"):
+                yield Button("Apply Selected", id="btn-apply", variant="primary")
+                yield Button("Cancel",         id="btn-cancel")
+
+    # ------------------------------------------------------------------ lifecycle
+
+    def on_mount(self) -> None:
+        self.query_one("#dns-manual-fields").display = False
+        if self._initial_base_ip:
+            self.query_one("#base-ip", Input).value = self._initial_base_ip
+
+    # ------------------------------------------------------------------ events
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        widget_id = event.control.id
+        value = event.value
+
+        if widget_id == "net-mode-select":
+            self._net_mode = str(value) if value != Select.BLANK else "static"
+            is_static = (self._net_mode == "static")
+            for device in self.devices:
+                mid = self._mid(device.mac_address)
+                try:
+                    self.query_one(f"#new-ip-{mid}", Input).display = is_static
+                except Exception:
+                    pass
+            self.query_one("#auto-assign-section").display = is_static
+
+        elif widget_id == "dns-mode-select":
+            self._dns_mode = str(value) if value != Select.BLANK else "auto"
+            self.query_one("#dns-manual-fields").display = (self._dns_mode == "manual")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        bid = event.button.id
+        if bid == "btn-cancel":
+            self.dismiss(None)
+        elif bid == "btn-auto-assign":
+            self._do_auto_assign()
+        elif bid == "btn-sel-all":
+            for device in self.devices:
+                try:
+                    self.query_one(f"#chk-{self._mid(device.mac_address)}", Checkbox).value = True
+                except Exception:
+                    pass
+        elif bid == "btn-sel-none":
+            for device in self.devices:
+                try:
+                    self.query_one(f"#chk-{self._mid(device.mac_address)}", Checkbox).value = False
+                except Exception:
+                    pass
+        elif bid == "btn-apply":
+            self._do_apply()
+
+    def _do_auto_assign(self) -> None:
+        base = self.query_one("#base-ip", Input).value.strip()
+        if not base:
+            self.notify("Enter a base IP address first", severity="warning")
+            return
+        try:
+            parts = [int(x) for x in base.split('.')]
+            if len(parts) != 4 or not all(0 <= p <= 255 for p in parts):
+                raise ValueError
+        except ValueError:
+            self.notify("Invalid base IP address", severity="error")
+            return
+
+        counter = 0
+        for device in self.devices:
+            mid = self._mid(device.mac_address)
+            try:
+                if not self.query_one(f"#chk-{mid}", Checkbox).value:
+                    continue
+                last = parts[3] + counter
+                if last > 255:
+                    self.notify(f"Overflow at {device.device_name} — stopped", severity="warning")
+                    break
+                self.query_one(f"#new-ip-{mid}", Input).value = (
+                    f"{parts[0]}.{parts[1]}.{parts[2]}.{last}"
+                )
+                counter += 1
+            except Exception:
+                pass
+        if counter:
+            self.notify(f"Auto-assigned {counter} IP addresses")
+            next_last = parts[3] + counter
+            if next_last <= 255:
+                self.query_one("#base-ip", Input).value = (
+                    f"{parts[0]}.{parts[1]}.{parts[2]}.{next_last}"
+                )
+
+    def _do_apply(self) -> None:
+        subnet  = self.query_one("#shared-subnet",  Input).value.strip()
+        gateway = self.query_one("#shared-gateway", Input).value.strip()
+        if not subnet:
+            self.notify("Subnet mask is required", severity="warning")
+            return
+
+        net_mode = self._net_mode
+        dns_mode = self._dns_mode
+        primary_dns   = self.query_one("#primary-dns",   Input).value.strip() or "8.8.8.8"
+        secondary_dns = self.query_one("#secondary-dns", Input).value.strip() or "8.8.4.4"
+        is_static = (net_mode == "static")
+
+        configs = []
+        for device in self.devices:
+            mid = self._mid(device.mac_address)
+            try:
+                if not self.query_one(f"#chk-{mid}", Checkbox).value:
+                    continue
+
+                if is_static:
+                    new_ip = self.query_one(f"#new-ip-{mid}", Input).value.strip()
+                    if not new_ip:
+                        continue
+                    parts = new_ip.split('.')
+                    if len(parts) != 4 or not all(0 <= int(p) <= 255 for p in parts):
+                        self.notify(f"Invalid IP for {device.device_name}: {new_ip}", severity="error")
+                        return
+                else:
+                    new_ip = device.ip_address  # device keeps its current IP; DHCP/auto assigns later
+
+                configs.append({
+                    'device':        device,
+                    'new_ip':        new_ip,
+                    'subnet':        subnet,
+                    'gateway':       gateway,
+                    'mode':          net_mode,
+                    'dns_mode':      dns_mode,
+                    'primary_dns':   primary_dns,
+                    'secondary_dns': secondary_dns,
+                })
+            except Exception:
+                pass
+
+        if not configs:
+            if is_static:
+                self.notify("No devices selected with a new IP entered", severity="warning")
+            else:
+                self.notify("No devices selected", severity="warning")
+            return
+        self.dismiss(configs)
+
+
+class ConfiguringScreen(ModalScreen):
+    """Progress screen shown while configure_camera commands are in flight."""
+
+    def __init__(self, total: int):
+        super().__init__()
+        self._total = total
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="modal-container"):
+            yield Label("Configuring Devices…", classes="modal-title")
+            yield Rule()
+            yield Label("Starting…", id="conf-current")
+            yield ProgressBar(total=self._total, show_eta=False, id="configure-progress")
+            yield Label("", id="conf-done")
+
+    def set_progress(self, current: int, device_name: str) -> None:
+        try:
+            self.query_one("#conf-current", Label).update(
+                f"({current}/{self._total})  {device_name}"
+            )
+            self.query_one("#configure-progress", ProgressBar).progress = current
+        except Exception:
+            pass
+
+    def set_done(self, ok: int, fail: int) -> None:
+        try:
+            style = "conf-result-ok" if fail == 0 else "conf-result-fail"
+            msg = f"Done — {ok} succeeded" + (f", {fail} failed" if fail else "")
+            self.query_one("#conf-done", Label).update(msg)
+        except Exception:
+            pass
 
 
 class ExportScreen(ModalScreen):
@@ -1256,9 +1683,11 @@ class EasyIPTUI(App):
         Binding("f4", "show_group_menu", "Groups"),
         Binding("f5", "show_setup_menu", "Setup"),
         Binding("e", "export", "Export"),
+        Binding("i", "configure_ip", "Config IP"),
         Binding("r", "refresh", "Refresh"),
         Binding("o", "open_in_browser", "Open Browser"),
         Binding("space", "toggle_group", "Expand/Collapse", show=False),
+        Binding("c", "copy_cell", "Copy Cell"),
     ]
 
     site_data: reactive[SiteData] = reactive(SiteData)
@@ -1279,6 +1708,8 @@ class EasyIPTUI(App):
         self._sort_column: Optional[str] = None  # field name to sort by, or None
         self._sort_ascending: bool = True
         self._column_fields: List[Optional[str]] = []  # maps column index to sortable field name
+        # Persists the next available base IP between Configure IP dialog sessions
+        self._next_base_ip: Optional[str] = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -1347,8 +1778,16 @@ class EasyIPTUI(App):
         table.clear(columns=True)
         self._add_table_columns(table)
 
+    def watch_theme(self, theme: str) -> None:
+        """Persist theme choice whenever it changes."""
+        if hasattr(self, 'app_config'):
+            self.app_config.theme = theme
+            self.app_config.save()
+
     def on_mount(self) -> None:
         """Called when app is mounted"""
+        # Restore saved theme before rendering
+        self.theme = self.app_config.theme
         self._rebuild_table_columns()
         self.refresh_table()
         self.title = f"i-PRO Easy IP Setup - {self.site_data.name}"
@@ -1518,6 +1957,8 @@ class EasyIPTUI(App):
             self.action_show_group_menu()
         elif button_id == "menu-setup":
             self.action_show_setup_menu()
+        elif button_id == "menu-config-ip":
+            self.action_configure_ip()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in data table"""
@@ -1584,9 +2025,10 @@ class EasyIPTUI(App):
         if result and isinstance(result, tuple) and result[0] == "browser":
             device = result[1]
             # Build URL and open browser
-            port = device.http_port if device.http_port != 80 else ""
+            scheme = "https" if device.http_port == 443 else "http"
+            port = device.http_port if device.http_port not in (80, 443) else ""
             port_str = f":{port}" if port else ""
-            url = f"http://{device.ip_address}{port_str}"
+            url = f"{scheme}://{device.ip_address}{port_str}"
             try:
                 webbrowser.open(url)
                 self.notify(f"Opening {url} in browser")
@@ -1616,6 +2058,9 @@ class EasyIPTUI(App):
         if filepath:
             try:
                 self.site_data = SiteData.load(filepath)
+                for group in self.site_data.groups:
+                    for device in group.devices:
+                        device.status = "unknown"
                 self.current_file = filepath
                 self.title = f"i-PRO Easy IP Setup - {self.site_data.name}"
                 self._rebuild_table_columns()  # Rebuild columns for loaded settings
@@ -1685,6 +2130,43 @@ class EasyIPTUI(App):
                     self.notify(f"Added {device.device_name} to {group_name}")
                     break
 
+    def _run_http_checks(self, discovered: List[DeviceInfo]) -> Set[str]:
+        """HTTP-verify each tracked device. Returns set of MACs that responded.
+
+        Any HTTP response (including 401/403) counts as reachable; only
+        connection errors and timeouts count as unreachable.
+        """
+        import ssl
+        import urllib.request
+        import urllib.error
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        # Build MAC→IP map from UDP discovery so we use the freshest IP
+        discovered_ips: Dict[str, str] = {d.mac_address.lower(): d.ip_address for d in discovered}
+
+        verified: Set[str] = set()
+        for group in self.site_data.groups:
+            for device in group.devices:
+                mac = device.mac_address.lower()
+                ip = discovered_ips.get(mac, device.ip_address)
+                if not ip:
+                    continue
+                port = device.http_port or 80
+                scheme = "https" if port == 443 else "http"
+                url = f"{scheme}://{ip}:{port}/cgi-bin/getinfo?FILE=1"
+                try:
+                    urllib.request.urlopen(url, timeout=3, context=ctx)
+                    verified.add(mac)
+                except urllib.error.HTTPError:
+                    # Camera responded with an HTTP error — it is still up
+                    verified.add(mac)
+                except Exception:
+                    pass  # Timeout or connection refused — camera not verified
+        return verified
+
     @work(exclusive=True, thread=True)
     def _run_scan(self, timeout: float, silent: bool = False) -> None:
         """Run network scan in background thread
@@ -1708,27 +2190,33 @@ class EasyIPTUI(App):
         if not silent:
             self.call_from_thread(self.pop_screen)
 
-        if not worker.is_cancelled:
-            self.call_from_thread(self._process_scan_results, devices, silent)
+        http_verified: Optional[Set[str]] = None
+        if self.site_data.deep_check_enabled and not worker.is_cancelled:
+            http_verified = self._run_http_checks(devices)
 
-    def _process_scan_results(self, devices: List[DeviceInfo], silent: bool = False) -> None:
+        if not worker.is_cancelled:
+            self.call_from_thread(self._process_scan_results, devices, silent, http_verified)
+
+    def _process_scan_results(self, devices: List[DeviceInfo], silent: bool = False, http_verified: Optional[Set[str]] = None) -> None:
         """Process scan results - update device statuses"""
         # Update status of existing devices
         existing_macs = set()
         for group in self.site_data.groups:
             for device in group.devices:
-                existing_macs.add(device.mac_address.lower())
-                # Update status based on scan
+                mac = device.mac_address.lower()
+                existing_macs.add(mac)
                 found = False
                 for scanned in devices:
-                    if scanned.mac_address.lower() == device.mac_address.lower():
-                        device.status = "online"
+                    if scanned.mac_address.lower() == mac:
                         device.last_seen = datetime.now().isoformat()
                         device.ip_address = scanned.ip_address
                         found = True
                         break
-                if not found:
-                    device.status = "offline"
+                if http_verified is not None:
+                    # Deep check mode: HTTP response is the source of truth
+                    device.status = "online" if mac in http_verified else "offline"
+                else:
+                    device.status = "online" if found else "offline"
 
         self.site_data.last_scan = datetime.now().isoformat()
         self.refresh_table()
@@ -1900,10 +2388,12 @@ class EasyIPTUI(App):
         self.push_screen(MoveDeviceScreen(devices, groups), self._handle_move_device)
 
     def _handle_move_device(self, result) -> None:
-        if result:
-            mac, target_group = result
-
-            # Find and remove device from current group
+        if not result:
+            return
+        moved = 0
+        target_group_name = result[0][1] if result else ""
+        for mac, target_group in result:
+            # Remove from current group
             device_to_move = None
             for group in self.site_data.groups:
                 for device in group.devices:
@@ -1913,16 +2403,137 @@ class EasyIPTUI(App):
                         break
                 if device_to_move:
                     break
-
             # Add to target group
             if device_to_move:
                 for group in self.site_data.groups:
                     if group.name == target_group:
                         group.devices.append(device_to_move)
-                        self.refresh_table()
-                        self._update_status_bar()
-                        self.notify(f"Moved {device_to_move.device_name} to {target_group}")
+                        moved += 1
                         break
+        if moved:
+            self.refresh_table()
+            self._update_status_bar()
+            self.notify(f"Moved {moved} device(s) to '{target_group_name}'")
+
+    # ── Configure IP actions ──────────────────────────────────────────────────
+
+    def action_configure_ip(self) -> None:
+        """Open the Configure IP dialog for tracked devices."""
+        all_devices = self.site_data.get_all_devices()
+        if not all_devices:
+            self.notify("No tracked devices — scan the network first", severity="warning")
+            return
+
+        # Pre-select the device under the cursor (if any)
+        preselected_mac: Optional[str] = None
+        table = self.query_one("#main-table", DataTable)
+        if table.cursor_row is not None and table.cursor_row < len(self._row_keys):
+            row_key = self._row_keys[table.cursor_row]
+            if row_key.startswith("device-"):
+                preselected_mac = row_key.replace("device-", "").replace("-", ":")
+
+        self.push_screen(
+            ConfigureIPScreen(all_devices, preselected_mac=preselected_mac,
+                              base_ip=self._next_base_ip),
+            self._handle_configure_ip,
+        )
+
+    def _handle_configure_ip(self, configs) -> None:
+        if configs:
+            # Advance the stored base IP to the address after the highest static IP applied.
+            # This pre-fills the base IP field the next time the dialog is opened.
+            static_ips = [cfg['new_ip'] for cfg in configs if cfg.get('mode', 'static') == 'static']
+            if static_ips:
+                try:
+                    octets_list = [list(map(int, ip.split('.'))) for ip in static_ips]
+                    max_last = max(o[3] for o in octets_list)
+                    prefix = '.'.join(map(str, octets_list[0][:3]))
+                    if max_last + 1 <= 255:
+                        self._next_base_ip = f"{prefix}.{max_last + 1}"
+                except Exception:
+                    pass
+            self._run_configure(configs)
+
+    @work(exclusive=True, thread=True)
+    def _run_configure(self, configs: List[dict]) -> None:
+        """Background worker: send configure_camera for each entry in configs."""
+        worker   = get_current_worker()
+        total    = len(configs)
+        interface = self.site_data.network_interface or "0.0.0.0"
+
+        conf_screen = ConfiguringScreen(total)
+        self.call_from_thread(self.push_screen, conf_screen)
+
+        results = []
+        for idx, cfg in enumerate(configs):
+            if worker.is_cancelled:
+                break
+            device        = cfg['device']
+            new_ip        = cfg['new_ip']
+            subnet        = cfg['subnet']
+            gateway       = cfg['gateway']
+            mode          = cfg.get('mode', 'static')
+            dns_mode      = cfg.get('dns_mode', 'manual')
+            primary_dns   = cfg.get('primary_dns', '8.8.8.8')
+            secondary_dns = cfg.get('secondary_dns', '8.8.4.4')
+
+            self.call_from_thread(conf_screen.set_progress, idx, device.device_name)
+
+            try:
+                setup = iPROIPSetup(timeout=5.0, interface=interface)
+                success = setup.configure_camera(
+                    mac_address=device.mac_address,
+                    ip=new_ip,
+                    subnet=subnet,
+                    gateway=gateway,
+                    port=device.http_port or 443,
+                    mode=mode,
+                    dns_mode=dns_mode,
+                    primary_dns=primary_dns,
+                    secondary_dns=secondary_dns,
+                )
+                results.append((device, new_ip, success))
+            except Exception:
+                results.append((device, new_ip, False))
+
+        ok   = sum(1 for _, _, s in results if s)
+        fail = len(results) - ok
+        self.call_from_thread(conf_screen.set_progress, total, "Complete")
+        self.call_from_thread(conf_screen.set_done, ok, fail)
+
+        import time as _time
+        _time.sleep(1.5)  # Let the user read the result
+
+        self.call_from_thread(self.pop_screen)
+        if not worker.is_cancelled:
+            self.call_from_thread(self._process_configure_results, results)
+
+    def _process_configure_results(self, results: List[tuple]) -> None:
+        """Update tracked device IPs and refresh the table after configuration."""
+        ok = fail = 0
+        for device, new_ip, success in results:
+            if success:
+                found = self.site_data.find_device_by_mac(device.mac_address)
+                if found:
+                    _, tracked = found
+                    tracked.ip_address = new_ip
+                ok += 1
+            else:
+                fail += 1
+
+        self.refresh_table()
+        self._update_status_bar()
+
+        if fail == 0:
+            self.notify(
+                f"IP configuration complete — {ok} device(s) updated",
+                severity="information",
+            )
+        else:
+            self.notify(
+                f"Configuration finished: {ok} succeeded, {fail} failed",
+                severity="warning",
+            )
 
     # Setup menu actions
     def action_show_setup_menu(self) -> None:
@@ -1939,6 +2550,9 @@ class EasyIPTUI(App):
 
             # Update network interface
             self.site_data.network_interface = result['network_interface']
+
+            # Update deep check setting
+            self.site_data.deep_check_enabled = result['deep_check_enabled']
 
             # Update scan frequency
             self.site_data.scan_frequency = result['frequency']
@@ -2054,9 +2668,10 @@ class EasyIPTUI(App):
                 result = self.site_data.find_device_by_mac(mac)
                 if result:
                     _, device = result
-                    port = device.http_port if device.http_port != 80 else ""
+                    scheme = "https" if device.http_port == 443 else "http"
+                    port = device.http_port if device.http_port not in (80, 443) else ""
                     port_str = f":{port}" if port else ""
-                    url = f"http://{device.ip_address}{port_str}"
+                    url = f"{scheme}://{device.ip_address}{port_str}"
                     try:
                         webbrowser.open(url)
                         self.notify(f"Opening {url} in browser")
@@ -2066,6 +2681,56 @@ class EasyIPTUI(App):
                 self.notify("Select a device to open in browser", severity="warning")
         else:
             self.notify("No row selected", severity="warning")
+
+    def _copy_to_clipboard(self, text: str) -> bool:
+        """Copy text to the system clipboard. Returns True on success."""
+        import subprocess
+        import platform
+        try:
+            system = platform.system()
+            if system == "Windows":
+                subprocess.run(["clip"], input=text.encode("utf-16"), check=True)
+            elif system == "Darwin":
+                subprocess.run(["pbcopy"], input=text.encode(), check=True)
+            else:
+                try:
+                    subprocess.run(["xclip", "-selection", "clipboard"], input=text.encode(), check=True)
+                except FileNotFoundError:
+                    subprocess.run(["xsel", "--clipboard", "--input"], input=text.encode(), check=True)
+            return True
+        except Exception:
+            return False
+
+    def action_copy_cell(self) -> None:
+        """Copy the value of the currently focused table cell to the clipboard."""
+        from textual.coordinate import Coordinate
+        table = self.query_one("#main-table", DataTable)
+        row = table.cursor_row
+        col = table.cursor_column
+        if row is None or col is None:
+            self.notify("No cell selected", severity="warning")
+            return
+        try:
+            cell_value = table.get_cell_at(Coordinate(row, col))
+        except Exception:
+            self.notify("Could not read cell value", severity="warning")
+            return
+
+        # Strip rich markup — cell values may be Rich Text objects
+        if hasattr(cell_value, "plain"):
+            plain = cell_value.plain
+        else:
+            plain = str(cell_value)
+        plain = plain.strip()
+
+        if not plain:
+            self.notify("Cell is empty", severity="warning")
+            return
+
+        if self._copy_to_clipboard(plain):
+            self.notify(f"Copied: {plain}")
+        else:
+            self.notify(f"Clipboard unavailable. Value: {plain}", severity="warning")
 
     def action_toggle_group(self) -> None:
         """Toggle expand/collapse for the currently selected group"""
