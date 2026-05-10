@@ -1,0 +1,77 @@
+{
+  "count": 6,
+  "cameras": [
+    {
+      "mac_address": "d4:2d:c5:14:c5:70",
+      "model_name": "S2252L",
+      "ip_address": "192.168.1.17",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "2.04",
+      "camera_name": "123456789012345",
+      "serial_number": "UDV07241",
+      "network_mode": "Static"
+    },
+    {
+      "mac_address": "d4:2d:c5:10:d9:d2",
+      "model_name": "X4573L",
+      "ip_address": "192.168.1.47",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.254",
+      "http_port": 80,
+      "firmware_version": "2.04",
+      "camera_name": "WV-X4573L",
+      "serial_number": "TIV17510",
+      "network_mode": "Static"
+    },
+    {
+      "mac_address": "d4:2d:c5:2c:2f:7f",
+      "model_name": "S35302-F2L",
+      "ip_address": "192.168.1.51",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "51",
+      "serial_number": "XDV50903",
+      "network_mode": "Static"
+    },
+    {
+      "mac_address": "d4:2d:c5:2a:8d:13",
+      "model_name": "X22700-V2L",
+      "ip_address": "192.168.1.52",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "52",
+      "serial_number": "XBV30463",
+      "network_mode": "Static"
+    },
+    {
+      "mac_address": "d4:2d:c5:07:05:58",
+      "model_name": "S22700-V2L",
+      "ip_address": "192.168.1.105",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "WV-S22700-V2L",
+      "serial_number": "ULV00006",
+      "network_mode": "Static"
+    },
+    {
+      "mac_address": "d4:2d:c5:1d:cf:aa",
+      "model_name": "S4576L",
+      "ip_address": "192.168.1.163",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "42",
+      "serial_number": "VCV12232",
+      "network_mode": "DHCP"
+    }
+  ]
+}

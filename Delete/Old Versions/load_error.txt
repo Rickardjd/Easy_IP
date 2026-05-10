@@ -1,0 +1,131 @@
+╭───────────────────────────────────────── Traceback (most recent call last) ──────────────────────────────────────────╮
+│ D:\Projects\Easy_IP\easy_ip_tui.py:514 in on_mount                                                                   │
+│                                                                                                                      │
+│    511 │                                                                                                             │
+│    512 │   def on_mount(self) -> None:                                                                               │
+│    513 │   │   """Populate files when screen mounts"""                                                               │
+│ ❱  514 │   │   self._refresh_file_list()                                                                             │
+│    515 │                                                                                                             │
+│    516 │   def _refresh_file_list(self) -> None:                                                                     │
+│    517 │   │   """Refresh the file list"""                                                                           │
+│                                                                                                                      │
+│ ╭────────── locals ──────────╮                                                                                       │
+│ │ self = FileBrowserScreen() │                                                                                       │
+│ ╰────────────────────────────╯                                                                                       │
+│                                                                                                                      │
+│ D:\Projects\Easy_IP\easy_ip_tui.py:531 in _refresh_file_list                                                         │
+│                                                                                                                      │
+│    528 │   │   │   items = sorted(self.current_path.iterdir(), key=lambda p: (not p.is_dir(), p                      │
+│    529 │   │   │   for item in items:                                                                                │
+│    530 │   │   │   │   if item.is_dir():                                                                             │
+│ ❱  531 │   │   │   │   │   btn = Button(f"📁 {item.name}", id=f"dir-{item.name}", classes="file                      │
+│    532 │   │   │   │   │   file_list.mount(btn)                                                                      │
+│    533 │   │   │   │   elif item.suffix.lower() == '.json':                                                          │
+│    534 │   │   │   │   │   btn = Button(f"📄 {item.name}", id=f"file-{item.name}", classes="fil                      │
+│                                                                                                                      │
+│ ╭───────────────────────────────────── locals ─────────────────────────────────────╮                                 │
+│ │       btn = Button(id='dir-Guides', classes='-style-default file-item')          │                                 │
+│ │     child = Button(id='btn-parent', classes='-style-default file-item')          │                                 │
+│ │ file_list = ScrollableContainer(id='file-list')                                  │                                 │
+│ │      item = WindowsPath('D:/Projects/Easy_IP/Old Versions')                      │                                 │
+│ │     items = [                                                                    │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/__pycache__'),                  │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/files'),                        │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/Guides'),                       │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/Old Versions'),                 │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/templates'),                    │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/BROADCAST_FIX_FINAL.md'),       │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/camera_database.json'),         │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/camera_tracker.py'),            │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/CAMERA_TRACKER_GUIDE.md'),      │                                 │
+│ │             │   WindowsPath('D:/Projects/Easy_IP/CAMERA_TRACKER_QUICKSTART.md'), │                                 │
+│ │             │   ... +24                                                          │                                 │
+│ │             ]                                                                    │                                 │
+│ │      self = FileBrowserScreen()                                                  │                                 │
+│ ╰──────────────────────────────────────────────────────────────────────────────────╯                                 │
+│                                                                                                                      │
+│ C:\Users\ricka\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\P │
+│ ython312\site-packages\textual\widgets\_button.py:293 in __init__                                                    │
+│                                                                                                                      │
+│   290 │   │   │   compact: Enable compact button style.                                                              │
+│   291 │   │   │   flat: Enable alternative flat look buttons.                                                        │
+│   292 │   │   """                                                                                                    │
+│ ❱ 293 │   │   super().__init__(name=name, id=id, classes=classes, disabled=disabled)                                 │
+│   294 │   │                                                                                                          │
+│   295 │   │   if label is None:                                                                                      │
+│   296 │   │   │   label = self.css_identifier_styled                                                                 │
+│                                                                                                                      │
+│ ╭─────────── locals ────────────╮                                                                                    │
+│ │   action = None               │                                                                                    │
+│ │  classes = 'file-item'        │                                                                                    │
+│ │  compact = False              │                                                                                    │
+│ │ disabled = False              │                                                                                    │
+│ │     flat = False              │                                                                                    │
+│ │       id = 'dir-Old Versions' │                                                                                    │
+│ │    label = '📁 Old Versions'  │                                                                                    │
+│ │     name = None               │                                                                                    │
+│ │     self = Button()           │                                                                                    │
+│ │  tooltip = None               │                                                                                    │
+│ │  variant = 'default'          │                                                                                    │
+│ ╰───────────────────────────────╯                                                                                    │
+│                                                                                                                      │
+│ C:\Users\ricka\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\P │
+│ ython312\site-packages\textual\widget.py:487 in __init__                                                             │
+│                                                                                                                      │
+│    484 │   │                                                                                                         │
+│    485 │   │   self._scrollbar_changes: set[tuple[bool, bool]] = set()                                               │
+│    486 │   │   """Used to stabilize scrollbars."""                                                                   │
+│ ❱  487 │   │   super().__init__(                                                                                     │
+│    488 │   │   │   name=name,                                                                                        │
+│    489 │   │   │   id=id,                                                                                            │
+│    490 │   │   │   classes=self.DEFAULT_CLASSES if classes is None else classes,                                     │
+│                                                                                                                      │
+│ ╭─────────────── locals ───────────────╮                                                                             │
+│ │ _null_size = Size(width=0, height=0) │                                                                             │
+│ │   children = ()                      │                                                                             │
+│ │    classes = 'file-item'             │                                                                             │
+│ │   disabled = False                   │                                                                             │
+│ │         id = 'dir-Old Versions'      │                                                                             │
+│ │     markup = True                    │                                                                             │
+│ │       name = None                    │                                                                             │
+│ │       self = Button()                │                                                                             │
+│ ╰──────────────────────────────────────╯                                                                             │
+│                                                                                                                      │
+│ C:\Users\ricka\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\P │
+│ ython312\site-packages\textual\dom.py:197 in __init__                                                                │
+│                                                                                                                      │
+│    194 │   │   self._name = name                                                                                     │
+│    195 │   │   self._id = None                                                                                       │
+│    196 │   │   if id is not None:                                                                                    │
+│ ❱  197 │   │   │   check_identifiers("id", id)                                                                       │
+│    198 │   │   │   self._id = id                                                                                     │
+│    199 │   │                                                                                                         │
+│    200 │   │   _classes = classes.split() if classes else []                                                         │
+│                                                                                                                      │
+│ ╭─────────── locals ───────────╮                                                                                     │
+│ │ classes = 'file-item'        │                                                                                     │
+│ │      id = 'dir-Old Versions' │                                                                                     │
+│ │    name = None               │                                                                                     │
+│ │    self = Button()           │                                                                                     │
+│ ╰──────────────────────────────╯                                                                                     │
+│                                                                                                                      │
+│ C:\Users\ricka\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\P │
+│ ython312\site-packages\textual\dom.py:98 in check_identifiers                                                        │
+│                                                                                                                      │
+│     95 │   match = _re_identifier.fullmatch                                                                          │
+│     96 │   for name in names:                                                                                        │
+│     97 │   │   if match(name) is None:                                                                               │
+│ ❱   98 │   │   │   raise BadIdentifier(                                                                              │
+│     99 │   │   │   │   f"{name!r} is an invalid {description}; "                                                     │
+│    100 │   │   │   │   "identifiers must contain only letters, numbers, underscores, or hyphens                      │
+│    101 │   │   │   )                                                                                                 │
+│                                                                                                                      │
+│ ╭─────────────────────────────────────── locals ───────────────────────────────────────╮                             │
+│ │ description = 'id'                                                                   │                             │
+│ │       match = <built-in method fullmatch of re.Pattern object at 0x00000183B582C9C0> │                             │
+│ │        name = 'dir-Old Versions'                                                     │                             │
+│ │       names = ('dir-Old Versions',)                                                  │                             │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────╯                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+BadIdentifier: 'dir-Old Versions' is an invalid id; identifiers must contain only letters, numbers, underscores, or
+hyphens, and must not begin with a number.

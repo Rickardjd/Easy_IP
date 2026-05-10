@@ -1,0 +1,32 @@
+
+============================================================
+ Easy IP  |  Build Script
+============================================================
+
+Python : Python 3.13.12
+
+[1/4] Installing build requirements...
+
+[notice] A new release of pip is available: 25.3 -> 26.0.1
+[notice] To update, run: C:\Users\ricka\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe -m pip install --upgrade pip
+      Done.
+
+[2/4] Generating icon...
+Icon written -> C:\Users\ricka\Desktop\Easy_IP\assets\icon.ico
+
+[3/4] Building executable with PyInstaller...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import textual,os;print(os.path.dirname(textual.__file__))
+    ^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'textual'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import rich,os;print(os.path.dirname(rich.__file__))
+    ^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'rich'
+[ERROR] Could not locate textual package. Run: python -m pip install textual
+
+============================================================
+ Build FAILED. See errors above.
+============================================================

@@ -41,9 +41,25 @@ tmp*
 # Data files (user-specific)
 *.json
 !package.json
+data/
+app_config.json
 
 # Log files
 *.log
 
 # Zip files
 *.zip
+
+# Build / installer output
+dist/
+build/
+*.egg-info/
+
+# Generated assets
+assets/icon.ico
+
+# Screenshots / scratch files
+screen_shot.bmp
+
+# Old version scratch files
+Old Versions/*.txt

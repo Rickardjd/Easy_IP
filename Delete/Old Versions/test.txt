@@ -1,0 +1,75 @@
+Camera Name,Model,Serial Number,MAC Address,IP Address,Subnet Mask,Gateway,HTTP Port,Network Mode,Firmware
+Garage,S2131L,RAV05998,bc:c3:42:76:b4:d2,192.168.1.14,255.255.255.0,192.168.1.254,443,Static,5.08
+123456789012345,S2252L,UDV07241,d4:2d:c5:14:c5:70,192.168.1.14,255.255.255.0,192.168.1.1,80,Static,2.04
+WV-X4573L,X4573L,TIV17510,d4:2d:c5:10:d9:d2,192.168.1.47,255.255.255.0,192.168.1.254,80,Static,2.04
+51,S35302-F2L,XDV50903,d4:2d:c5:2c:2f:7f,192.168.1.51,255.255.255.0,192.168.1.1,80,Static,3.60
+34,S22700-V2L,ULV00006,d4:2d:c5:07:05:58,192.168.1.104,255.255.255.0,192.168.1.1,80,Auto (AutoIP),3.60
+42,S4576L,VCV12232,d4:2d:c5:1d:cf:aa,192.168.1.163,255.255.255.0,192.168.1.1,80,DHCP,3.60
+Discovered 6 camera(s):
+
+[1] Camera: Garage
+  Model: S2131L
+  Serial: RAV05998
+  MAC: bc:c3:42:76:b4:d2
+  IP: 192.168.1.16
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.254
+  HTTP Port: 443
+  Network Mode: Static
+  Firmware: 5.08
+
+[2] Camera: 123456789012345
+  Model: S2252L
+  Serial: UDV07241
+  MAC: d4:2d:c5:14:c5:70
+  IP: 192.168.1.17
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 2.04
+
+[3] Camera: WV-X4573L
+  Model: X4573L
+  Serial: TIV17510
+  MAC: d4:2d:c5:10:d9:d2
+  IP: 192.168.1.47
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.254
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 2.04
+
+[4] Camera: 51
+  Model: S35302-F2L
+  Serial: XDV50903
+  MAC: d4:2d:c5:2c:2f:7f
+  IP: 192.168.1.51
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 3.60
+
+[5] Camera: 34
+  Model: S22700-V2L
+  Serial: ULV00006
+  MAC: d4:2d:c5:07:05:58
+  IP: 192.168.1.104
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Auto (AutoIP)
+  Firmware: 3.60
+
+[6] Camera: 42
+  Model: S4576L
+  Serial: VCV12232
+  MAC: d4:2d:c5:1d:cf:aa
+  IP: 192.168.1.163
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: DHCP
+  Firmware: 3.60
+

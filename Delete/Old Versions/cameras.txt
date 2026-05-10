@@ -1,0 +1,65 @@
+{
+  "count": 6,
+  "cameras": [
+    {
+      "mac_address": "d4:2d:c5:10:d9:d2",
+      "model_name": "X4573L",
+      "ip_address": "192.168.1.47",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.254",
+      "http_port": 80,
+      "firmware_version": "2.04",
+      "camera_name": "WV-X4573L"
+    },
+    {
+      "mac_address": "d4:2d:c5:1d:cf:aa",
+      "model_name": "S4576L",
+      "ip_address": "192.168.1.163",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "42"
+    },
+    {
+      "mac_address": "d4:2d:c5:07:05:58",
+      "model_name": "S22700-V2L",
+      "ip_address": "192.168.1.34",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "34"
+    },
+    {
+      "mac_address": "bc:c3:42:76:b4:d2",
+      "model_name": "S2131L",
+      "ip_address": "192.168.1.14",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.254",
+      "http_port": 443,
+      "firmware_version": "5.08",
+      "camera_name": "Garage"
+    },
+    {
+      "mac_address": "d4:2d:c5:14:c5:70",
+      "model_name": "S2252L",
+      "ip_address": "192.168.1.12",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "2.04",
+      "camera_name": "12"
+    },
+    {
+      "mac_address": "d4:2d:c5:2c:2f:7f",
+      "model_name": "S35302-F2L",
+      "ip_address": "192.168.1.51",
+      "subnet_mask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "http_port": 80,
+      "firmware_version": "3.60",
+      "camera_name": "51"
+    }
+  ]
+}

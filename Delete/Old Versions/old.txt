@@ -1,0 +1,369 @@
+D:\Projects\Easy_IP>python easy_ip_3_old.py discover -v
+[INFO] ============================================================
+[INFO] Starting camera discovery...
+[INFO] Timeout: 3.0s
+[INFO] Broadcast address: 255.255.255.255:10670
+[INFO] ============================================================
+[INFO] Creating UDP broadcast socket...
+[INFO] Binding socket to ('0.0.0.0', 10669)
+[INFO] Socket bound to ('0.0.0.0', 10669)
+[DEBUG] Built search packet: 93 bytes
+[DEBUG] Packet hex: 0001002a000d000000000000a029193eab91c0a80179000020111e11231f1e191300000001000000000000000000000000fff00026002000210022002300250028004000410042004400a500a600a700a800ad00b300b400b700b8ffff
+[INFO] Sending search packet to ('255.255.255.255', 10670)
+[INFO] Sent 93 bytes
+[INFO] Listening for responses (timeout: 3.0s)...
+[DEBUG] Time remaining: 3.00s
+[INFO] Response #1 from ('192.168.1.47', 10669)
+[DEBUG] Received 471 bytes from ('192.168.1.47', 10669)
+[DEBUG] Response type: 0x01a3
+[DEBUG] Camera MAC: d4:2d:c5:10:d9:d2
+[DEBUG] TLV: tag=0x00, len=1, value=02
+[DEBUG] TLV: tag=0x01, len=1, value=00
+[DEBUG] TLV: tag=0x20, len=4, value=c0a8012f
+[DEBUG] TLV: tag=0x21, len=4, value=ffffff00
+[DEBUG] TLV: tag=0x22, len=4, value=c0a801fe
+[DEBUG] TLV: tag=0x23, len=8, value=c0a801fe00000000
+[DEBUG] TLV: tag=0x25, len=2, value=0050
+[DEBUG] TLV: tag=0x40, len=16, value=fe80000000000000d62dc5fffe10d9d2
+[DEBUG] TLV: tag=0x41, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0x42, len=32, value=0000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0x44, len=2, value=0050
+[DEBUG] TLV: tag=0x45, len=2, value=0040
+[DEBUG] TLV: tag=0xa0, len=4, value=c0a8012f
+[DEBUG] TLV: tag=0xa1, len=4, value=ffffff00
+[DEBUG] TLV: tag=0xa2, len=4, value=c0a801fe
+[DEBUG] TLV: tag=0xa3, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0xa4, len=4, value=00000000
+[DEBUG] TLV: tag=0xa6, len=1, value=92
+[DEBUG] TLV: tag=0xa7, len=16, value=57562d58343537334c00000000000000
+[DEBUG] TLV: tag=0xa8, len=16, value=58343537334c00000000000000000000
+[DEBUG] TLV: tag=0xa9, len=16, value=322e3034000000000000000000000000
+[DEBUG] TLV: tag=0xaa, len=16, value=302e3030000000000000000000000000
+[DEBUG] TLV: tag=0xb1, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb2, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb4, len=2, value=0001
+[DEBUG] TLV: tag=0xb5, len=1, value=00
+[DEBUG] TLV: tag=0xb6, len=1, value=92
+[DEBUG] TLV: tag=0xd0, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0xd1, len=16, value=54495631373531300000000000000000
+[DEBUG] TLV: tag=0xd2, len=2, value=0003
+[DEBUG] Network mode: Static (value=2)
+[DEBUG] IP from TLV 0x20: 192.168.1.47
+[DEBUG] Subnet from TLV 0x21: 255.255.255.0
+[DEBUG] Gateway from TLV 0x22: 192.168.1.254
+[DEBUG] HTTP port from TLV 0x25: 80
+[DEBUG] Camera name from TLV 0xa7: WV-X4573L
+[DEBUG] Model from TLV 0xa8: X4573L
+[DEBUG] Firmware from TLV 0xa9: 2.04
+[DEBUG] Serial from TLV 0xd1: TIV17510
+[INFO] ✓ Parsed camera: X4573L (WV-X4573L) at 192.168.1.47 [Static]
+[INFO] ✓ Valid camera found: X4573L (d4:2d:c5:10:d9:d2)
+[DEBUG] Time remaining: 3.00s
+[INFO] Response #2 from ('192.168.1.163', 10669)
+[DEBUG] Received 477 bytes from ('192.168.1.163', 10669)
+[DEBUG] Response type: 0x01a9
+[DEBUG] Camera MAC: d4:2d:c5:1d:cf:aa
+[DEBUG] TLV: tag=0x00, len=1, value=00
+[DEBUG] TLV: tag=0x01, len=1, value=00
+[DEBUG] TLV: tag=0x20, len=4, value=c0a801a3
+[DEBUG] TLV: tag=0x21, len=4, value=ffffff00
+[DEBUG] TLV: tag=0x22, len=4, value=c0a80101
+[DEBUG] TLV: tag=0x23, len=8, value=c0a8010100000000
+[DEBUG] TLV: tag=0x25, len=2, value=0050
+[DEBUG] TLV: tag=0x40, len=16, value=fe80000000000000d62dc5fffe1dcfaa
+[DEBUG] TLV: tag=0x41, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0x42, len=32, value=0000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0x44, len=2, value=0050
+[DEBUG] TLV: tag=0x45, len=2, value=0040
+[DEBUG] TLV: tag=0xa0, len=4, value=c0a801a3
+[DEBUG] TLV: tag=0xa1, len=4, value=ffffff00
+[DEBUG] TLV: tag=0xa2, len=4, value=c0a80101
+[DEBUG] TLV: tag=0xa3, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0xa4, len=4, value=00000000
+[DEBUG] TLV: tag=0xa6, len=1, value=92
+[DEBUG] TLV: tag=0xa7, len=16, value=34320000000000000000000000000000
+[DEBUG] TLV: tag=0xa8, len=16, value=53343537364c00000000000000000000
+[DEBUG] TLV: tag=0xa9, len=16, value=332e3630000000000000000000000000
+[DEBUG] TLV: tag=0xaa, len=16, value=302e3030000000000000000000000000
+[DEBUG] TLV: tag=0xb1, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb2, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb4, len=2, value=0001
+[DEBUG] TLV: tag=0xb5, len=1, value=00
+[DEBUG] TLV: tag=0xb6, len=1, value=92
+[DEBUG] TLV: tag=0xd0, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0xd1, len=16, value=56435631323233320000000000000000
+[DEBUG] TLV: tag=0xd3, len=2, value=0001
+[DEBUG] TLV: tag=0xd2, len=2, value=0002
+[DEBUG] Network mode: DHCP (value=0)
+[DEBUG] IP from TLV 0x20: 192.168.1.163
+[DEBUG] Subnet from TLV 0x21: 255.255.255.0
+[DEBUG] Gateway from TLV 0x22: 192.168.1.1
+[DEBUG] HTTP port from TLV 0x25: 80
+[DEBUG] Camera name from TLV 0xa7: 42
+[DEBUG] Model from TLV 0xa8: S4576L
+[DEBUG] Firmware from TLV 0xa9: 3.60
+[DEBUG] Serial from TLV 0xd1: VCV12232
+[INFO] ✓ Parsed camera: S4576L (42) at 192.168.1.163 [DHCP]
+[INFO] ✓ Valid camera found: S4576L (d4:2d:c5:1d:cf:aa)
+[DEBUG] Time remaining: 2.99s
+[INFO] Response #3 from ('192.168.1.105', 10669)
+[DEBUG] Received 477 bytes from ('192.168.1.105', 10669)
+[DEBUG] Response type: 0x01a9
+[DEBUG] Camera MAC: d4:2d:c5:07:05:58
+[DEBUG] TLV: tag=0x00, len=1, value=02
+[DEBUG] TLV: tag=0x01, len=1, value=00
+[DEBUG] TLV: tag=0x20, len=4, value=c0a80169
+[DEBUG] TLV: tag=0x21, len=4, value=ffffff00
+[DEBUG] TLV: tag=0x22, len=4, value=c0a80101
+[DEBUG] TLV: tag=0x23, len=8, value=c0a8010100000000
+[DEBUG] TLV: tag=0x25, len=2, value=0050
+[DEBUG] TLV: tag=0x40, len=16, value=fe80000000000000d62dc5fffe070558
+[DEBUG] TLV: tag=0x41, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0x42, len=32, value=0000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0x44, len=2, value=0050
+[DEBUG] TLV: tag=0x45, len=2, value=0040
+[DEBUG] TLV: tag=0xa0, len=4, value=c0a80169
+[DEBUG] TLV: tag=0xa1, len=4, value=ffffff00
+[DEBUG] TLV: tag=0xa2, len=4, value=c0a80101
+[DEBUG] TLV: tag=0xa3, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0xa4, len=4, value=00000000
+[DEBUG] TLV: tag=0xa6, len=1, value=92
+[DEBUG] TLV: tag=0xa7, len=16, value=57562d5332323730302d56324c000000
+[DEBUG] TLV: tag=0xa8, len=16, value=5332323730302d56324c000000000000
+[DEBUG] TLV: tag=0xa9, len=16, value=332e3630000000000000000000000000
+[DEBUG] TLV: tag=0xaa, len=16, value=302e3030000000000000000000000000
+[DEBUG] TLV: tag=0xb1, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb2, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb4, len=2, value=0001
+[DEBUG] TLV: tag=0xb5, len=1, value=00
+[DEBUG] TLV: tag=0xb6, len=1, value=92
+[DEBUG] TLV: tag=0xd0, len=16, value=58323237314c00000000000000000000
+[DEBUG] TLV: tag=0xd1, len=16, value=554c5630303030360000000000000000
+[DEBUG] TLV: tag=0xd3, len=2, value=0001
+[DEBUG] TLV: tag=0xd2, len=2, value=0002
+[DEBUG] Network mode: Static (value=2)
+[DEBUG] IP from TLV 0x20: 192.168.1.105
+[DEBUG] Subnet from TLV 0x21: 255.255.255.0
+[DEBUG] Gateway from TLV 0x22: 192.168.1.1
+[DEBUG] HTTP port from TLV 0x25: 80
+[DEBUG] Camera name from TLV 0xa7: WV-S22700-V2L
+[DEBUG] Model from TLV 0xa8: S22700-V2L
+[DEBUG] Firmware from TLV 0xa9: 3.60
+[DEBUG] Serial from TLV 0xd1: ULV00006
+[INFO] ✓ Parsed camera: S22700-V2L (WV-S22700-V2L) at 192.168.1.105 [Static]
+[INFO] ✓ Valid camera found: S22700-V2L (d4:2d:c5:07:05:58)
+[DEBUG] Time remaining: 2.99s
+[INFO] Response #4 from ('192.168.1.51', 10669)
+[DEBUG] Received 477 bytes from ('192.168.1.51', 10669)
+[DEBUG] Response type: 0x01a9
+[DEBUG] Camera MAC: d4:2d:c5:2c:2f:7f
+[DEBUG] TLV: tag=0x00, len=1, value=02
+[DEBUG] TLV: tag=0x01, len=1, value=00
+[DEBUG] TLV: tag=0x20, len=4, value=c0a80133
+[DEBUG] TLV: tag=0x21, len=4, value=ffffff00
+[DEBUG] TLV: tag=0x22, len=4, value=c0a80101
+[DEBUG] TLV: tag=0x23, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0x25, len=2, value=0050
+[DEBUG] TLV: tag=0x40, len=16, value=fe80000000000000d62dc5fffe2c2f7f
+[DEBUG] TLV: tag=0x41, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0x42, len=32, value=0000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0x44, len=2, value=0050
+[DEBUG] TLV: tag=0x45, len=2, value=0040
+[DEBUG] TLV: tag=0xa0, len=4, value=c0a80133
+[DEBUG] TLV: tag=0xa1, len=4, value=ffffff00
+[DEBUG] TLV: tag=0xa2, len=4, value=c0a80101
+[DEBUG] TLV: tag=0xa3, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0xa4, len=4, value=00000000
+[DEBUG] TLV: tag=0xa6, len=1, value=92
+[DEBUG] TLV: tag=0xa7, len=16, value=46726f6e740000000000000000000000
+[DEBUG] TLV: tag=0xa8, len=16, value=5333353330322d46324c000000000000
+[DEBUG] TLV: tag=0xa9, len=16, value=332e3630000000000000000000000000
+[DEBUG] TLV: tag=0xaa, len=16, value=302e3030000000000000000000000000
+[DEBUG] TLV: tag=0xb1, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb2, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb4, len=2, value=0001
+[DEBUG] TLV: tag=0xb5, len=1, value=00
+[DEBUG] TLV: tag=0xb6, len=1, value=92
+[DEBUG] TLV: tag=0xd0, len=16, value=53323133364c00000000000000000000
+[DEBUG] TLV: tag=0xd1, len=16, value=58445635303930330000000000000000
+[DEBUG] TLV: tag=0xd3, len=2, value=0001
+[DEBUG] TLV: tag=0xd2, len=2, value=0002
+[DEBUG] Network mode: Static (value=2)
+[DEBUG] IP from TLV 0x20: 192.168.1.51
+[DEBUG] Subnet from TLV 0x21: 255.255.255.0
+[DEBUG] Gateway from TLV 0x22: 192.168.1.1
+[DEBUG] HTTP port from TLV 0x25: 80
+[DEBUG] Camera name from TLV 0xa7: Front
+[DEBUG] Model from TLV 0xa8: S35302-F2L
+[DEBUG] Firmware from TLV 0xa9: 3.60
+[DEBUG] Serial from TLV 0xd1: XDV50903
+[INFO] ✓ Parsed camera: S35302-F2L (Front) at 192.168.1.51 [Static]
+[INFO] ✓ Valid camera found: S35302-F2L (d4:2d:c5:2c:2f:7f)
+[DEBUG] Time remaining: 2.98s
+[INFO] Response #5 from ('192.168.1.52', 10669)
+[DEBUG] Received 477 bytes from ('192.168.1.52', 10669)
+[DEBUG] Response type: 0x01a9
+[DEBUG] Camera MAC: d4:2d:c5:2a:8d:13
+[DEBUG] TLV: tag=0x00, len=1, value=02
+[DEBUG] TLV: tag=0x01, len=1, value=00
+[DEBUG] TLV: tag=0x20, len=4, value=c0a80134
+[DEBUG] TLV: tag=0x21, len=4, value=ffffff00
+[DEBUG] TLV: tag=0x22, len=4, value=c0a80101
+[DEBUG] TLV: tag=0x23, len=8, value=c0a801fa08080404
+[DEBUG] TLV: tag=0x25, len=2, value=0050
+[DEBUG] TLV: tag=0x40, len=16, value=fe80000000000000d62dc5fffe2a8d13
+[DEBUG] TLV: tag=0x41, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0x42, len=32, value=0000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0x44, len=2, value=0050
+[DEBUG] TLV: tag=0x45, len=2, value=0040
+[DEBUG] TLV: tag=0xa0, len=4, value=c0a80134
+[DEBUG] TLV: tag=0xa1, len=4, value=ffffff00
+[DEBUG] TLV: tag=0xa2, len=4, value=c0a80101
+[DEBUG] TLV: tag=0xa3, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0xa4, len=4, value=00000000
+[DEBUG] TLV: tag=0xa6, len=1, value=92
+[DEBUG] TLV: tag=0xa7, len=16, value=57562d5832323730302d56324c000000
+[DEBUG] TLV: tag=0xa8, len=16, value=5832323730302d56324c000000000000
+[DEBUG] TLV: tag=0xa9, len=16, value=332e3630000000000000000000000000
+[DEBUG] TLV: tag=0xaa, len=16, value=302e3030000000000000000000000000
+[DEBUG] TLV: tag=0xb1, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb2, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb4, len=2, value=0001
+[DEBUG] TLV: tag=0xb5, len=1, value=00
+[DEBUG] TLV: tag=0xb6, len=1, value=92
+[DEBUG] TLV: tag=0xd0, len=16, value=5332323730302d56324c000000000000
+[DEBUG] TLV: tag=0xd1, len=16, value=58425633303436330000000000000000
+[DEBUG] TLV: tag=0xd3, len=2, value=0001
+[DEBUG] TLV: tag=0xd2, len=2, value=0002
+[DEBUG] Network mode: Static (value=2)
+[DEBUG] IP from TLV 0x20: 192.168.1.52
+[DEBUG] Subnet from TLV 0x21: 255.255.255.0
+[DEBUG] Gateway from TLV 0x22: 192.168.1.1
+[DEBUG] HTTP port from TLV 0x25: 80
+[DEBUG] Camera name from TLV 0xa7: WV-X22700-V2L
+[DEBUG] Model from TLV 0xa8: X22700-V2L
+[DEBUG] Firmware from TLV 0xa9: 3.60
+[DEBUG] Serial from TLV 0xd1: XBV30463
+[INFO] ✓ Parsed camera: X22700-V2L (WV-X22700-V2L) at 192.168.1.52 [Static]
+[INFO] ✓ Valid camera found: X22700-V2L (d4:2d:c5:2a:8d:13)
+[DEBUG] Time remaining: 2.98s
+[INFO] Response #6 from ('192.168.1.17', 10669)
+[DEBUG] Received 471 bytes from ('192.168.1.17', 10669)
+[DEBUG] Response type: 0x01a3
+[DEBUG] Camera MAC: d4:2d:c5:14:c5:70
+[DEBUG] TLV: tag=0x00, len=1, value=02
+[DEBUG] TLV: tag=0x01, len=1, value=00
+[DEBUG] TLV: tag=0x20, len=4, value=c0a80111
+[DEBUG] TLV: tag=0x21, len=4, value=ffffff00
+[DEBUG] TLV: tag=0x22, len=4, value=c0a80101
+[DEBUG] TLV: tag=0x23, len=8, value=c0a8010100000000
+[DEBUG] TLV: tag=0x25, len=2, value=0050
+[DEBUG] TLV: tag=0x40, len=16, value=fe80000000000000d62dc5fffe14c570
+[DEBUG] TLV: tag=0x41, len=16, value=00000000000000000000000000000000
+[DEBUG] TLV: tag=0x42, len=32, value=0000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0x44, len=2, value=0050
+[DEBUG] TLV: tag=0x45, len=2, value=0040
+[DEBUG] TLV: tag=0xa0, len=4, value=c0a80111
+[DEBUG] TLV: tag=0xa1, len=4, value=ffffff00
+[DEBUG] TLV: tag=0xa2, len=4, value=c0a80101
+[DEBUG] TLV: tag=0xa3, len=8, value=0000000000000000
+[DEBUG] TLV: tag=0xa4, len=4, value=00000000
+[DEBUG] TLV: tag=0xa6, len=1, value=92
+[DEBUG] TLV: tag=0xa7, len=16, value=31323334353637383930313233343500
+[DEBUG] TLV: tag=0xa8, len=16, value=53323235324c00000000000000000000
+[DEBUG] TLV: tag=0xa9, len=16, value=322e3034000000000000000000000000
+[DEBUG] TLV: tag=0xaa, len=16, value=302e3030000000000000000000000000
+[DEBUG] TLV: tag=0xb1, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb2, len=40, value=00000000000000000000000000000000000000000000000000000000000000000000000000000000
+[DEBUG] TLV: tag=0xb4, len=2, value=0001
+[DEBUG] TLV: tag=0xb5, len=1, value=00
+[DEBUG] TLV: tag=0xb6, len=1, value=92
+[DEBUG] TLV: tag=0xd0, len=16, value=58323235314c00000000000000000000
+[DEBUG] TLV: tag=0xd1, len=16, value=55445630373234310000000000000000
+[DEBUG] TLV: tag=0xd2, len=2, value=0003
+[DEBUG] Network mode: Static (value=2)
+[DEBUG] IP from TLV 0x20: 192.168.1.17
+[DEBUG] Subnet from TLV 0x21: 255.255.255.0
+[DEBUG] Gateway from TLV 0x22: 192.168.1.1
+[DEBUG] HTTP port from TLV 0x25: 80
+[DEBUG] Camera name from TLV 0xa7: 123456789012345
+[DEBUG] Model from TLV 0xa8: S2252L
+[DEBUG] Firmware from TLV 0xa9: 2.04
+[DEBUG] Serial from TLV 0xd1: UDV07241
+[INFO] ✓ Parsed camera: S2252L (123456789012345) at 192.168.1.17 [Static]
+[INFO] ✓ Valid camera found: S2252L (d4:2d:c5:14:c5:70)
+[DEBUG] Time remaining: 2.97s
+[DEBUG] Socket timeout - no more responses
+[INFO] ============================================================
+[INFO] Discovery complete in 3.04s
+[INFO] Total responses received: 6
+[INFO] Valid cameras found: 6
+[INFO] ============================================================
+[DEBUG] Closing socket
+Discovered 6 camera(s):
+
+[1] Camera: 123456789012345
+  Model: S2252L
+  Serial: UDV07241
+  MAC: d4:2d:c5:14:c5:70
+  IP: 192.168.1.17
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 2.04
+
+[2] Camera: WV-X4573L
+  Model: X4573L
+  Serial: TIV17510
+  MAC: d4:2d:c5:10:d9:d2
+  IP: 192.168.1.47
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.254
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 2.04
+
+[3] Camera: Front
+  Model: S35302-F2L
+  Serial: XDV50903
+  MAC: d4:2d:c5:2c:2f:7f
+  IP: 192.168.1.51
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 3.60
+
+[4] Camera: WV-X22700-V2L
+  Model: X22700-V2L
+  Serial: XBV30463
+  MAC: d4:2d:c5:2a:8d:13
+  IP: 192.168.1.52
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 3.60
+
+[5] Camera: WV-S22700-V2L
+  Model: S22700-V2L
+  Serial: ULV00006
+  MAC: d4:2d:c5:07:05:58
+  IP: 192.168.1.105
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: Static
+  Firmware: 3.60
+
+[6] Camera: 42
+  Model: S4576L
+  Serial: VCV12232
+  MAC: d4:2d:c5:1d:cf:aa
+  IP: 192.168.1.163
+  Subnet: 255.255.255.0
+  Gateway: 192.168.1.1
+  HTTP Port: 80
+  Network Mode: DHCP
+  Firmware: 3.60
