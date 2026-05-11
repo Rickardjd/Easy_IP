@@ -753,6 +753,11 @@ class iPROIPSetup:
             primary_dns: Primary DNS server (dns_mode="manual" only)
             secondary_dns: Secondary DNS server (dns_mode="manual" only)
         """
+        # Strip BOM and any invisible Unicode characters that terminals/clipboards
+        # sometimes prepend (e.g. ﻿ from UTF-8 BOM, zero-width spaces).
+        import re as _re
+        mac_address = _re.sub(r'[^0-9a-fA-F:\-]', '', mac_address)
+
         # Auto-detect the camera's current HTTP port if not specified.
         # The camera silently rejects config packets whose port doesn't match its
         # current value, so we must always send the correct current port.
