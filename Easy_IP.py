@@ -961,9 +961,10 @@ class iPROIPSetup:
         Returns:
             (success: bool, message: str)
         """
-        import base64      as _b64
+        import base64         as _b64
         import urllib.request as _req
         import urllib.error   as _err
+        import urllib.parse   as _parse
         import ssl            as _ssl
 
         # Client-side validation before hitting the network
@@ -971,46 +972,77 @@ class iPROIPSetup:
             return False, "Username must be 1-32 characters"
         if not (8 <= len(password) <= 32):
             return False, "Password must be 8-32 characters"
-        has_letter = any(c.isalpha()  for c in password)
-        has_digit  = any(c.isdigit()  for c in password)
+        has_letter = any(c.isalpha() for c in password)
+        has_digit  = any(c.isdigit() for c in password)
         if not (has_letter and has_digit):
             return False, "Password must contain both letters and numbers"
 
         b64_name = _b64.b64encode(username.encode()).decode('ascii')
         b64_pw   = _b64.b64encode(password.encode()).decode('ascii')
-        query    = f"name={b64_name}&password={b64_pw}&repassword={b64_pw}"
 
-        # Accept self-signed certs (i-PRO cameras use self-signed HTTPS by default)
+        # urlencode percent-encodes the '=' padding in BASE64 values (e.g.
+        # 'YWRtaW4=' → 'YWRtaW4%3D').  Without this the camera's CGI parser
+        # sees a stray '=' and treats the request as having no parameters,
+        # returning "Not Registered" instead of "Completion of registration".
+        encoded_params = _parse.urlencode({
+            'name':       b64_name,
+            'password':   b64_pw,
+            'repassword': b64_pw,
+        })
+        post_body = encoded_params.encode('ascii')
+
+        # Accept self-signed certs (i-PRO cameras use self-signed HTTPS)
         ssl_ctx = _ssl.create_default_context()
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode    = _ssl.CERT_NONE
 
-        # Try HTTPS on the configured port, then plain HTTP on port 80
-        urls = [f"https://{ip}:{port}/cgi-bin/reg_admin?{query}"]
+        # Attempt order:
+        #  1. HTTPS, params in URL query string  (spec format)
+        #  2. HTTPS, params in POST body         (standard POST form)
+        #  3. HTTP:80, params in URL query string
+        #  4. HTTP:80, params in POST body
+        base_https = f"https://{ip}:{port}/cgi-bin/reg_admin"
+        base_http  = f"http://{ip}:80/cgi-bin/reg_admin"
+        attempts = [
+            (base_https, encoded_params, b'',        'HTTPS URL-params'),
+            (base_https, '',             post_body,   'HTTPS POST-body'),
+        ]
         if port != 80:
-            urls.append(f"http://{ip}:80/cgi-bin/reg_admin?{query}")
+            attempts += [
+                (base_http, encoded_params, b'',       'HTTP URL-params'),
+                (base_http, '',             post_body,  'HTTP POST-body'),
+            ]
 
         last_error = "no connection attempt succeeded"
-        for url in urls:
-            proto = url.split("://")[0].upper()
+        for base_url, qs, body_data, label in attempts:
+            url = f"{base_url}?{qs}" if qs else base_url
             try:
-                logger.info(f"  [{proto}] POST {url.split('?')[0]}")
-                req    = _req.Request(url, method='POST', data=b'')
+                logger.info(f"  [{label}] POST {base_url}")
+                headers = {}
+                if body_data:
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                req    = _req.Request(url, method='POST',
+                                      data=body_data or b'',
+                                      headers=headers)
                 opener = _req.build_opener(_req.HTTPSHandler(context=ssl_ctx))
                 with opener.open(req, timeout=self.timeout) as resp:
-                    body = resp.read().decode('utf-8', errors='ignore').strip()
-                    logger.info(f"  Response {resp.status}: '{body}'")
+                    body_text = resp.read().decode('utf-8', errors='ignore').strip()
+                    logger.info(f"  Response {resp.status}: '{body_text}'")
 
-                    if 'Completion of registration' in body:
+                    if 'Completion of registration' in body_text:
                         return True,  "Completion of registration"
-                    if 'Invalid value' in body:
+                    if 'Invalid value' in body_text:
                         return False, ("Invalid value — password must be 8-32 chars "
                                        "containing both letters and numbers")
-                    if 'Parameter error' in body:
+                    if 'Parameter error' in body_text:
                         return False, "Parameter error — check username/password"
-                    if 'Not Registered' in body:
-                        return False, "Unexpected 'Not Registered' response (no parameters sent?)"
-                    return False, f"Unexpected response: '{body}'"
+                    if 'Not Registered' in body_text:
+                        # Camera received the request but saw no parameters —
+                        # try the next attempt (different encoding / transport)
+                        logger.debug(f"  [{label}] got 'Not Registered', trying next")
+                        last_error = f"[{label}] parameters not received by camera"
+                        continue
+                    return False, f"Unexpected response: '{body_text}'"
 
             except _err.HTTPError as e:
                 if e.code == 503:
