@@ -1396,10 +1396,19 @@ class ConfiguringScreen(ModalScreen):
         except Exception:
             pass
 
-    def set_done(self, ok: int, fail: int) -> None:
+    def set_done(self, ok: int, fail: int, expired: int = 0) -> None:
         try:
-            style = "conf-result-ok" if fail == 0 else "conf-result-fail"
-            msg = f"Done — {ok} succeeded" + (f", {fail} failed" if fail else "")
+            parts = []
+            if ok:
+                parts.append(f"{ok} succeeded")
+            if expired:
+                parts.append(f"{expired} setup window expired")
+            other_fail = fail - expired
+            if other_fail:
+                parts.append(f"{other_fail} failed")
+            if not parts:
+                parts.append("nothing to do")
+            msg = "Done — " + ", ".join(parts)
             self.query_one("#conf-done", Label).update(msg)
         except Exception:
             pass
@@ -2457,13 +2466,27 @@ class EasyIPTUI(App):
     @work(exclusive=True, thread=True)
     def _run_configure(self, configs: List[dict]) -> None:
         """Background worker: send configure_camera for each entry in configs."""
-        worker   = get_current_worker()
-        total    = len(configs)
+        worker    = get_current_worker()
+        total     = len(configs)
         interface = self.site_data.network_interface or "0.0.0.0"
 
         conf_screen = ConfiguringScreen(total)
         self.call_from_thread(self.push_screen, conf_screen)
 
+        # One upfront discovery scan to get each camera's current setup-window
+        # state.  Using a shorter timeout (2 s) since we only need one response
+        # per device and they reply within milliseconds on a local LAN.
+        self.call_from_thread(conf_screen.set_progress, 0, "Checking camera state…")
+        live: dict = {}
+        try:
+            scanner = iPROIPSetup(timeout=2.0, interface=interface)
+            for d in scanner.discover_devices():
+                live[d.mac_address.lower()] = d
+        except Exception:
+            pass
+
+        # results are (device, new_ip, success, reason)
+        # reason is None for normal outcomes, "expired" when setup window is closed
         results = []
         for idx, cfg in enumerate(configs):
             if worker.is_cancelled:
@@ -2477,7 +2500,18 @@ class EasyIPTUI(App):
             primary_dns   = cfg.get('primary_dns', '8.8.8.8')
             secondary_dns = cfg.get('secondary_dns', '8.8.4.4')
 
-            self.call_from_thread(conf_screen.set_progress, idx, device.device_name)
+            self.call_from_thread(conf_screen.set_progress, idx + 1, device.device_name)
+
+            # Refuse if the camera itself has reported its setup window is closed.
+            live_dev = live.get(device.mac_address.lower())
+            if live_dev is not None and live_dev.setup_window_open is False:
+                results.append((device, new_ip, False, "expired"))
+                continue
+
+            # Use the freshly discovered port when available (more accurate than
+            # the value stored from the last scan).
+            live_port = live_dev.http_port if live_dev else None
+            port = live_port or device.http_port or 443
 
             try:
                 setup = iPROIPSetup(timeout=5.0, interface=interface)
@@ -2486,20 +2520,21 @@ class EasyIPTUI(App):
                     ip=new_ip,
                     subnet=subnet,
                     gateway=gateway,
-                    port=device.http_port or 443,
+                    port=port,
                     mode=mode,
                     dns_mode=dns_mode,
                     primary_dns=primary_dns,
                     secondary_dns=secondary_dns,
                 )
-                results.append((device, new_ip, success))
+                results.append((device, new_ip, success, None))
             except Exception:
-                results.append((device, new_ip, False))
+                results.append((device, new_ip, False, None))
 
-        ok   = sum(1 for _, _, s in results if s)
-        fail = len(results) - ok
+        ok      = sum(1 for r in results if r[2])
+        expired = sum(1 for r in results if r[3] == "expired")
+        fail    = len(results) - ok
         self.call_from_thread(conf_screen.set_progress, total, "Complete")
-        self.call_from_thread(conf_screen.set_done, ok, fail)
+        self.call_from_thread(conf_screen.set_done, ok, fail, expired)
 
         import time as _time
         _time.sleep(1.5)  # Let the user read the result
@@ -2510,28 +2545,43 @@ class EasyIPTUI(App):
 
     def _process_configure_results(self, results: List[tuple]) -> None:
         """Update tracked device IPs and refresh the table after configuration."""
-        ok = fail = 0
-        for device, new_ip, success in results:
+        ok = fail = expired = 0
+        expired_names = []
+        for result in results:
+            device, new_ip, success = result[0], result[1], result[2]
+            reason = result[3] if len(result) > 3 else None
             if success:
                 found = self.site_data.find_device_by_mac(device.mac_address)
                 if found:
                     _, tracked = found
                     tracked.ip_address = new_ip
                 ok += 1
+            elif reason == "expired":
+                expired += 1
+                expired_names.append(device.device_name)
             else:
                 fail += 1
 
         self.refresh_table()
         self._update_status_bar()
 
-        if fail == 0:
+        if expired_names:
+            self.notify(
+                "Setup window expired — power-cycle to reconfigure: "
+                + ", ".join(expired_names),
+                severity="error",
+            )
+        other_fail = fail
+        if ok == 0 and other_fail == 0 and expired > 0:
+            return  # already notified above, nothing else to say
+        if other_fail == 0 and ok > 0:
             self.notify(
                 f"IP configuration complete — {ok} device(s) updated",
                 severity="information",
             )
-        else:
+        elif ok > 0 or other_fail > 0:
             self.notify(
-                f"Configuration finished: {ok} succeeded, {fail} failed",
+                f"Configuration finished: {ok} succeeded, {other_fail} failed",
                 severity="warning",
             )
 
