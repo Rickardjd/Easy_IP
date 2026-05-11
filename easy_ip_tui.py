@@ -103,13 +103,16 @@ class TrackedDevice:
     last_seen: Optional[str] = None
     first_seen: Optional[str] = None
     added_manually: bool = False
+    admin_password_set: Optional[bool] = None
 
     def to_dict(self) -> Dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'TrackedDevice':
-        return cls(**data)
+        from dataclasses import fields as _fields
+        known = {f.name for f in _fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in known})
 
     @classmethod
     def from_device_info(cls, device: DeviceInfo) -> 'TrackedDevice':
@@ -129,7 +132,8 @@ class TrackedDevice:
             network_mode=device.network_mode,
             status="online",
             last_seen=now,
-            first_seen=now
+            first_seen=now,
+            admin_password_set=device.admin_password_set,
         )
 
 
@@ -1609,6 +1613,10 @@ class DeviceDetailsScreen(ModalScreen):
             yield Rule()
             yield Label(f"Firmware: {d.firmware_version}")
             yield Label(f"Status: {d.status}")
+            if d.admin_password_set is False:
+                yield Label("Admin Password: NOT SET", classes="device-offline")
+            elif d.admin_password_set is True:
+                yield Label("Admin Password: Set", classes="device-online")
             yield Label(f"First Seen: {d.first_seen or 'N/A'}")
             yield Label(f"Last Seen: {d.last_seen or 'N/A'}")
             yield Rule()
@@ -1842,7 +1850,10 @@ class EasyIPTUI(App):
             row.append(stats_text)
         else:
             row.append("    ")  # Indentation
-            row.append(device.device_name)
+            name_text = Text(device.device_name)
+            if device.admin_password_set is False:
+                name_text.append(" [No PW]", style="bold yellow")
+            row.append(name_text)
 
         if not is_group_header:
             if self.site_data.show_device_type:
@@ -2219,6 +2230,7 @@ class EasyIPTUI(App):
                     if scanned.mac_address.lower() == mac:
                         device.last_seen = datetime.now().isoformat()
                         device.ip_address = scanned.ip_address
+                        device.admin_password_set = scanned.admin_password_set
                         found = True
                         break
                 if http_verified is not None:
@@ -2238,6 +2250,19 @@ class EasyIPTUI(App):
             if offline > 0:
                 self.notify(f"Monitor scan: {offline} device(s) offline", severity="warning")
             return
+
+        # Warn if any tracked camera still has no admin password set
+        no_pw = [
+            d.device_name
+            for group in self.site_data.groups
+            for d in group.devices
+            if d.admin_password_set is False
+        ]
+        if no_pw:
+            self.notify(
+                "No admin password: " + ", ".join(no_pw),
+                severity="warning",
+            )
 
         # For manual scans, show full results
         self._show_scan_results(devices, existing_macs)
