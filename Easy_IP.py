@@ -937,6 +937,94 @@ class iPROIPSetup:
             if self.sock:
                 self.sock.close()
 
+    def set_admin_credentials(self, ip: str, port: int,
+                              username: str, password: str) -> tuple:
+        """
+        Register the administrator account on a camera that has no admin set.
+
+        Uses HTTP POST to /cgi-bin/reg_admin (no authentication required).
+        Returns immediately with (False, reason) if the camera already has an
+        administrator registered (HTTP 503).
+
+        Password requirements (enforced by the camera):
+          - 8 to 32 characters
+          - Must contain at least one letter AND at least one digit
+
+        All parameters are BASE64-encoded per the i-PRO CGI specification.
+
+        Args:
+            ip:       Camera IPv4 address
+            port:     Camera HTTP/HTTPS port (tried as HTTPS first, then HTTP:80)
+            username: Administrator username (1-32 chars)
+            password: Administrator password (8-32 chars, letters+numbers)
+
+        Returns:
+            (success: bool, message: str)
+        """
+        import base64      as _b64
+        import urllib.request as _req
+        import urllib.error   as _err
+        import ssl            as _ssl
+
+        # Client-side validation before hitting the network
+        if not (1 <= len(username) <= 32):
+            return False, "Username must be 1-32 characters"
+        if not (8 <= len(password) <= 32):
+            return False, "Password must be 8-32 characters"
+        has_letter = any(c.isalpha()  for c in password)
+        has_digit  = any(c.isdigit()  for c in password)
+        if not (has_letter and has_digit):
+            return False, "Password must contain both letters and numbers"
+
+        b64_name = _b64.b64encode(username.encode()).decode('ascii')
+        b64_pw   = _b64.b64encode(password.encode()).decode('ascii')
+        query    = f"name={b64_name}&password={b64_pw}&repassword={b64_pw}"
+
+        # Accept self-signed certs (i-PRO cameras use self-signed HTTPS by default)
+        ssl_ctx = _ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode    = _ssl.CERT_NONE
+
+        # Try HTTPS on the configured port, then plain HTTP on port 80
+        urls = [f"https://{ip}:{port}/cgi-bin/reg_admin?{query}"]
+        if port != 80:
+            urls.append(f"http://{ip}:80/cgi-bin/reg_admin?{query}")
+
+        last_error = "no connection attempt succeeded"
+        for url in urls:
+            proto = url.split("://")[0].upper()
+            try:
+                logger.info(f"  [{proto}] POST {url.split('?')[0]}")
+                req    = _req.Request(url, method='POST', data=b'')
+                opener = _req.build_opener(_req.HTTPSHandler(context=ssl_ctx))
+                with opener.open(req, timeout=self.timeout) as resp:
+                    body = resp.read().decode('utf-8', errors='ignore').strip()
+                    logger.info(f"  Response {resp.status}: '{body}'")
+
+                    if 'Completion of registration' in body:
+                        return True,  "Completion of registration"
+                    if 'Invalid value' in body:
+                        return False, ("Invalid value — password must be 8-32 chars "
+                                       "containing both letters and numbers")
+                    if 'Parameter error' in body:
+                        return False, "Parameter error — check username/password"
+                    if 'Not Registered' in body:
+                        return False, "Unexpected 'Not Registered' response (no parameters sent?)"
+                    return False, f"Unexpected response: '{body}'"
+
+            except _err.HTTPError as e:
+                if e.code == 503:
+                    return False, ("Administrator already registered — "
+                                   "use the camera web interface to change credentials")
+                last_error = f"HTTP {e.code}: {e.reason}"
+                logger.warning(f"  {proto} error: {last_error}")
+
+            except OSError as e:
+                last_error = str(e)
+                logger.debug(f"  {proto} connection failed: {e}")
+
+        return False, f"Connection failed: {last_error}"
+
 
 def get_network_info():
     """Get information about available network interfaces"""
@@ -1105,6 +1193,19 @@ Examples:
     config_parser.add_argument('-v', '--verbose', action='store_true',
                               help='Enable verbose diagnostic output')
     
+    # Set admin credentials command
+    admin_parser = subparsers.add_parser('set-admin',
+                                         help='Set administrator credentials on a camera with no admin registered')
+    admin_parser.add_argument('--ip',       required=True, help='Camera IP address')
+    admin_parser.add_argument('--port',     type=int, default=443, help='Camera HTTP/HTTPS port (default: 443)')
+    admin_parser.add_argument('--username', required=True, help='Administrator username (1-32 chars)')
+    admin_parser.add_argument('--password', required=True,
+                              help='Administrator password (8-32 chars, must include letters and numbers)')
+    admin_parser.add_argument('--timeout',  type=float, default=5.0,
+                              help='Request timeout in seconds (default: 5.0)')
+    admin_parser.add_argument('-v', '--verbose', action='store_true',
+                              help='Enable verbose diagnostic output')
+
     # Diagnostic command
     diag_parser = subparsers.add_parser('diag', help='Run network diagnostics')
     diag_parser.add_argument('-v', '--verbose', action='store_true',
@@ -1222,6 +1323,22 @@ Examples:
         
         sys.exit(0)
     
+    elif args.command == 'set-admin':
+        setup = iPROIPSetup(timeout=args.timeout, verbose=args.verbose)
+        success, message = setup.set_admin_credentials(
+            ip=args.ip,
+            port=args.port,
+            username=args.username,
+            password=args.password,
+        )
+        if success:
+            print(f"Administrator credentials set on {args.ip}:{args.port}")
+            print(f"  Username: {args.username}")
+            sys.exit(0)
+        else:
+            print(f"Failed: {message}", file=sys.stderr)
+            sys.exit(1)
+
     elif args.command == 'configure':
         setup = iPROIPSetup(timeout=args.timeout, verbose=args.verbose)
         success = setup.configure_camera(

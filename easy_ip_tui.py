@@ -459,6 +459,31 @@ Input {
     margin: 0 0 0 0;
 }
 
+/* ── Set admin password dialog ───────────────────────────── */
+#admin-pw-modal {
+    width: 70;
+}
+
+#admin-device-list {
+    height: 10;
+    border: solid $primary;
+    margin: 1 0;
+}
+
+.admin-device-row {
+    height: auto;
+    padding: 0 1;
+}
+
+.admin-device-row Checkbox {
+    width: 1fr;
+}
+
+.admin-hint {
+    color: $text-muted;
+    margin: 0 0 1 0;
+}
+
 /* ── Move devices dialog ─────────────────────────────────── */
 #move-device-modal {
     width: 72;
@@ -630,6 +655,7 @@ class MenuBar(Horizontal):
         yield Button("Groups",    id="menu-groups",    classes="menu-button")
         yield Button("Setup",     id="menu-setup",     classes="menu-button")
         yield Button("Config IP", id="menu-config-ip", classes="menu-button")
+        yield Button("Admin PW",  id="menu-admin-pw",  classes="menu-button")
         with Vertical(id="monitor-info"):
             yield Label("MONITORING: STOPPED", id="monitor-status", classes="monitor-stopped")
             yield Label("", id="monitor-last-scan-label")
@@ -1078,6 +1104,106 @@ class MoveDeviceScreen(ModalScreen):
         self.dismiss(selected)
 
 
+class SetAdminPasswordScreen(ModalScreen):
+    """Set administrator credentials on cameras that have no admin registered."""
+
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def __init__(self, devices: List['TrackedDevice']):
+        super().__init__()
+        self.devices = devices  # pre-filtered: only admin_password_set is False
+
+    def _mid(self, mac: str) -> str:
+        return mac.replace(":", "")
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="modal-container", id="admin-pw-modal"):
+            yield Label("Set Administrator Credentials", classes="modal-title")
+            yield Rule()
+
+            yield Label("Username:")
+            yield Input(value="admin", placeholder="admin", id="admin-username")
+
+            yield Label("Password:")
+            yield Label("8-32 characters — must contain letters and numbers.",
+                        classes="admin-hint")
+            yield Input(placeholder="Password", password=True, id="admin-password")
+
+            yield Label("Confirm Password:")
+            yield Input(placeholder="Confirm password", password=True, id="admin-confirm")
+
+            yield Rule()
+            yield Label(f"Cameras without admin password ({len(self.devices)}):")
+            with ScrollableContainer(id="admin-device-list"):
+                for device in self.devices:
+                    mid = self._mid(device.mac_address)
+                    with Horizontal(classes="admin-device-row"):
+                        yield Checkbox(
+                            f"{device.device_name}  ({device.ip_address})",
+                            value=True,
+                            id=f"adm-{mid}",
+                        )
+
+            with Horizontal(classes="move-sel-buttons"):
+                yield Button("All",  id="btn-sel-all",  variant="default")
+                yield Button("None", id="btn-sel-none", variant="default")
+
+            yield Rule()
+            with Horizontal(classes="modal-buttons"):
+                yield Button("Apply Selected", id="btn-apply", variant="primary")
+                yield Button("Cancel",         id="btn-cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        bid = event.button.id
+        if bid == "btn-cancel":
+            self.dismiss(None)
+        elif bid == "btn-sel-all":
+            for d in self.devices:
+                try:
+                    self.query_one(f"#adm-{self._mid(d.mac_address)}", Checkbox).value = True
+                except Exception:
+                    pass
+        elif bid == "btn-sel-none":
+            for d in self.devices:
+                try:
+                    self.query_one(f"#adm-{self._mid(d.mac_address)}", Checkbox).value = False
+                except Exception:
+                    pass
+        elif bid == "btn-apply":
+            self._do_apply()
+
+    def _do_apply(self) -> None:
+        username = self.query_one("#admin-username", Input).value.strip()
+        password = self.query_one("#admin-password", Input).value
+        confirm  = self.query_one("#admin-confirm",  Input).value
+
+        if not username:
+            self.notify("Username is required", severity="warning")
+            return
+        if not password:
+            self.notify("Password is required", severity="warning")
+            return
+        if password != confirm:
+            self.notify("Passwords do not match", severity="error")
+            return
+        if not (8 <= len(password) <= 32):
+            self.notify("Password must be 8-32 characters", severity="error")
+            return
+        if not (any(c.isalpha() for c in password) and any(c.isdigit() for c in password)):
+            self.notify("Password must contain both letters and numbers", severity="error")
+            return
+
+        selected = [
+            d for d in self.devices
+            if self.query_one(f"#adm-{self._mid(d.mac_address)}", Checkbox).value
+        ]
+        if not selected:
+            self.notify("No devices selected", severity="warning")
+            return
+
+        self.dismiss({'devices': selected, 'username': username, 'password': password})
+
+
 class ManualAddScreen(ModalScreen):
     """Manually add device modal"""
 
@@ -1377,15 +1503,16 @@ class ConfigureIPScreen(ModalScreen):
 
 
 class ConfiguringScreen(ModalScreen):
-    """Progress screen shown while configure_camera commands are in flight."""
+    """Generic progress screen for multi-device background operations."""
 
-    def __init__(self, total: int):
+    def __init__(self, total: int, title: str = "Configuring Devices…"):
         super().__init__()
         self._total = total
+        self._title = title
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="modal-container"):
-            yield Label("Configuring Devices…", classes="modal-title")
+            yield Label(self._title, classes="modal-title")
             yield Rule()
             yield Label("Starting…", id="conf-current")
             yield ProgressBar(total=self._total, show_eta=False, id="configure-progress")
@@ -1701,6 +1828,7 @@ class EasyIPTUI(App):
         Binding("f5", "show_setup_menu", "Setup"),
         Binding("e", "export", "Export"),
         Binding("i", "configure_ip", "Config IP"),
+        Binding("a", "set_admin_pw", "Admin PW"),
         Binding("r", "refresh", "Refresh"),
         Binding("o", "open_in_browser", "Open Browser"),
         Binding("space", "toggle_group", "Expand/Collapse", show=False),
@@ -1979,6 +2107,8 @@ class EasyIPTUI(App):
             self.action_show_setup_menu()
         elif button_id == "menu-config-ip":
             self.action_configure_ip()
+        elif button_id == "menu-admin-pw":
+            self.action_set_admin_pw()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in data table"""
@@ -2609,6 +2739,97 @@ class EasyIPTUI(App):
                 f"Configuration finished: {ok} succeeded, {other_fail} failed",
                 severity="warning",
             )
+
+    # ── Set admin password actions ────────────────────────────────────────────
+
+    def action_set_admin_pw(self) -> None:
+        """Open the Set Admin Password dialog — only shows cameras without a password."""
+        candidates = [
+            d
+            for group in self.site_data.groups
+            for d in group.devices
+            if d.admin_password_set is False
+        ]
+        if not candidates:
+            self.notify(
+                "All tracked cameras already have an admin password set.",
+                severity="information",
+            )
+            return
+        self.push_screen(
+            SetAdminPasswordScreen(candidates),
+            self._handle_set_admin_pw,
+        )
+
+    def _handle_set_admin_pw(self, result) -> None:
+        if result:
+            self._run_set_admin(result)
+
+    @work(exclusive=True, thread=True)
+    def _run_set_admin(self, config: dict) -> None:
+        """Background worker: POST admin credentials to each selected camera."""
+        devices  = config['devices']
+        username = config['username']
+        password = config['password']
+        total    = len(devices)
+        interface = self.site_data.network_interface or "0.0.0.0"
+
+        prog = ConfiguringScreen(total, title="Setting Admin Credentials…")
+        self.call_from_thread(self.push_screen, prog)
+
+        # results: (device, success, message)
+        results = []
+        for idx, device in enumerate(devices):
+            self.call_from_thread(prog.set_progress, idx + 1, device.device_name)
+            try:
+                setup = iPROIPSetup(timeout=5.0, interface=interface)
+                ok, msg = setup.set_admin_credentials(
+                    ip=device.ip_address,
+                    port=device.http_port or 443,
+                    username=username,
+                    password=password,
+                )
+                results.append((device, ok, msg))
+            except Exception as e:
+                results.append((device, False, str(e)))
+
+        ok_count   = sum(1 for _, s, _ in results if s)
+        fail_count = total - ok_count
+        self.call_from_thread(prog.set_progress, total, "Complete")
+        self.call_from_thread(prog.set_done, ok_count, fail_count)
+
+        import time as _time
+        _time.sleep(1.5)
+
+        self.call_from_thread(self.pop_screen)
+        from textual.worker import get_current_worker
+        if not get_current_worker().is_cancelled:
+            self.call_from_thread(self._process_admin_results, results)
+
+    def _process_admin_results(self, results: list) -> None:
+        """Update admin_password_set on success and notify."""
+        ok_names   = []
+        fail_items = []
+        for device, success, msg in results:
+            if success:
+                found = self.site_data.find_device_by_mac(device.mac_address)
+                if found:
+                    _, tracked = found
+                    tracked.admin_password_set = True
+                ok_names.append(device.device_name)
+            else:
+                fail_items.append(f"{device.device_name}: {msg}")
+
+        self.refresh_table()
+        self._update_status_bar()
+
+        if ok_names:
+            self.notify(
+                f"Admin password set on: {', '.join(ok_names)}",
+                severity="information",
+            )
+        for msg in fail_items:
+            self.notify(msg, severity="error")
 
     # Setup menu actions
     def action_show_setup_menu(self) -> None:

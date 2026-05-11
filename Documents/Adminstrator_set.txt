@@ -1,0 +1,47 @@
+
+ 
+10.1. Administrator registration 
+ 
+At the time of first access to the camera (or at the time of initialization), no administrator is registered.  
+Administrator must be registered on camera’s web or following CGI. 
+ 
+[Important] 
+For more information on the specifications to protect a camera from an unnecessary attack via network, 
+see chapter 1.3. 
+ 
+[URL]  /cgi-bin/reg_admin?name=<Value>&password=<Value>&repassword=<Value> 
+[Method] POST 
+[Access level] no access level and no authentication 
+ 
+Parameter name Value Comments 
+Name Characters name: 1-32 characters *BASE64 encoded 
+Password Characters password: 8-32 characters that must include the 
+number and character. * BASE64 encoded 
+repassword Characters repassword *BASE64 encoded 
+ 
+[Response] 
+------------------------------------------------------------------------------------------------
+|                        |          When no administrator        |        When administrator   |
+|                        |          is registered                |        is registered        |
+------------------------------------------------------------------------------------------------
+| /cgi-bin/reg_admin     |   Reply [200 OK]                      |   Reply [503]               |
+| (no parameter)         |   Content-type: text/plain            |   (Service Unavailable)     |
+|                        |   Content-Length: xx                  |                             |
+|                        |   Not Registered                      |                             |
+|-----------------------------------------------------------------                             |
+| /cgi-bin/reg_admin     |   Reply [200 OK]                      |                             |
+| (parameter not enough) |   Content-type: text/plain            |                             |
+|                        |   Content-Length: xx                  |                             |
+|                        |   Parameter error                     |                             |
+|-----------------------------------------------------------------                             |
+| /cgi-bin/reg_admin     |   Reply [200 OK]                      |                             |
+| (parameter is error)   |   Content-type: text/plain            |                             |
+|                        |   Content-Length: xx                  |                             |
+|                        |   Invalid value                       |                             |
+|-----------------------------------------------------------------                             |
+| /cgi-bin/reg_admin     |   Reply [200 OK]                      |                             |
+| (succeeded)            |   Content-type: text/plain            |                             |
+|                        |   Content-Length: xx                  |                             |
+|                        |   Completion of registration          |                             |
+------------------------------------------------------------------------------------------------
+
