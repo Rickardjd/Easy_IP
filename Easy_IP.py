@@ -44,7 +44,10 @@ class DeviceInfo:
     device_name: str
     serial_number: str
     network_mode: str
-    device_type_code: Optional[int] = None  # Raw device type code from tag 0xa6
+    device_type_code: Optional[int] = None   # Raw device type code from tag 0xa6
+    # Setup / security state decoded from discovery response
+    setup_window_open: Optional[bool] = None  # True = within 20-min config window
+    admin_password_set: Optional[bool] = None # True = admin password configured
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -82,6 +85,15 @@ class DeviceInfo:
             "Firmware"
         ]
     
+    def setup_status(self) -> str:
+        """Human-readable setup / security status string."""
+        if self.setup_window_open is None:
+            return "Unknown"
+        if not self.setup_window_open:
+            return "Setup window expired — power-cycle to reconfigure"
+        pw = "no admin password" if self.admin_password_set is False else "admin password set"
+        return f"Setup window open ({pw})"
+
     def __str__(self) -> str:
         """Human-readable representation"""
         device_label = "Recorder" if self.device_type == "recorder" else "Camera"
@@ -95,7 +107,8 @@ class DeviceInfo:
             f"  Gateway: {self.gateway}\n"
             f"  HTTP Port: {self.http_port}\n"
             f"  Network Mode: {self.network_mode}\n"
-            f"  Firmware: {self.firmware_version}"
+            f"  Firmware: {self.firmware_version}\n"
+            f"  Status: {self.setup_status()}"
         )
 
 
@@ -571,10 +584,35 @@ class iPROIPSetup:
                 if not serial_number:
                     serial_number = "Unknown"
                 logger.debug(f"Serial from TLV 0xd1: {serial_number}")
-            
+
+            # ── Setup window state ── tag 0x00B4 (2 bytes, big-endian)
+            # 0x0000 = within the 20-minute setup window (IP change accepted)
+            # 0x0001 = setup window has expired (IP change will be silently ignored)
+            setup_window_open: Optional[bool] = None
+            if 0xb4 in tlv_data and len(tlv_data[0xb4]) >= 2:
+                b4_val = struct.unpack(">H", tlv_data[0xb4][:2])[0]
+                setup_window_open = (b4_val == 0x0000)
+                logger.debug(f"Setup window: {'open' if setup_window_open else 'CLOSED'} (0xB4={b4_val:#06x})")
+
+            # ── Admin password state ── UDP payload byte 0x25 (proto-constant offset 13)
+            # 0x02 = admin password is configured
+            # 0x01 = no admin password set (factory / post-reset default)
+            admin_password_set: Optional[bool] = None
+            if len(data) > 0x25:
+                pw_byte = data[0x25]
+                if pw_byte == 0x02:
+                    admin_password_set = True
+                elif pw_byte == 0x01:
+                    admin_password_set = False
+                logger.debug(f"Admin password: {'set' if admin_password_set else 'NOT set'} (byte=0x{pw_byte:02x})")
+
             device_label = "recorder" if device_type == "recorder" else "camera"
-            logger.info(f"✓ Parsed {device_label}: {model_name} ({device_name}) at {ip_address} [{network_mode}]")
-            
+            logger.info(
+                f"✓ Parsed {device_label}: {model_name} ({device_name}) at {ip_address}"
+                f" [{network_mode}] setup={'open' if setup_window_open else ('closed' if setup_window_open is False else '?')}"
+                f" pw={'set' if admin_password_set else ('unset' if admin_password_set is False else '?')}"
+            )
+
             return DeviceInfo(
                 device_type=device_type,
                 mac_address=mac_address,
@@ -587,7 +625,9 @@ class iPROIPSetup:
                 device_name=device_name,
                 serial_number=serial_number,
                 network_mode=network_mode,
-                device_type_code=device_type_code
+                device_type_code=device_type_code,
+                setup_window_open=setup_window_open,
+                admin_password_set=admin_password_set,
             )
         
         except Exception as e:
@@ -718,13 +758,28 @@ class iPROIPSetup:
         # current value, so we must always send the correct current port.
         if port is None:
             norm_mac = mac_address.replace('-', ':').lower()
-            logger.info("Auto-discovering camera to detect current HTTP port...")
+            logger.info("Auto-discovering camera to detect current HTTP port and setup state...")
             try:
                 devices = self.discover_devices()
                 for device in devices:
                     if device.mac_address.lower() == norm_mac:
                         port = device.http_port
                         logger.info(f"  Detected camera HTTP port: {port}")
+
+                        # ── Setup window check ────────────────────────────────
+                        if device.setup_window_open is False:
+                            logger.error(
+                                f"  Camera {mac_address} is OUTSIDE the 20-minute setup window."
+                                " Configuration will be rejected by the camera."
+                                " Power-cycle the device to reopen the setup window."
+                            )
+                            return False
+
+                        if device.setup_window_open is True:
+                            if device.admin_password_set is False:
+                                logger.info("  Setup window: OPEN — no admin password set (factory/reset state)")
+                            else:
+                                logger.info("  Setup window: OPEN — admin password is set")
                         break
             except Exception as e:
                 logger.warning(f"Discovery failed: {e}")
