@@ -7,15 +7,17 @@ A cross-platform Python TUI (Terminal User Interface) for discovering and managi
 1. [Getting Started](#getting-started)
 2. [Main Interface](#main-interface)
 3. [Scanning for Devices](#scanning-for-devices)
-4. [Configuring IP Addresses](#configuring-ip-addresses)
-5. [Managing Groups](#managing-groups)
-6. [Monitoring Devices](#monitoring-devices)
-7. [Setup & Configuration](#setup--configuration)
-8. [File Operations](#file-operations)
-9. [Exporting Data](#exporting-data)
-10. [Keyboard Shortcuts](#keyboard-shortcuts)
-11. [Command Line Usage](#command-line-usage)
-12. [Troubleshooting](#troubleshooting)
+4. [Device Security Status](#device-security-status)
+5. [Configuring IP Addresses](#configuring-ip-addresses)
+6. [Setting Administrator Credentials](#setting-administrator-credentials)
+7. [Managing Groups](#managing-groups)
+8. [Monitoring Devices](#monitoring-devices)
+9. [Setup & Configuration](#setup--configuration)
+10. [File Operations](#file-operations)
+11. [Exporting Data](#exporting-data)
+12. [Keyboard Shortcuts](#keyboard-shortcuts)
+13. [Command Line Usage](#command-line-usage)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -44,13 +46,15 @@ When you launch the application you will see a menu bar at the top, the device t
 
 ### Menu Bar
 
-| Menu | Key | Purpose |
-|------|-----|---------|
+| Button | Key | Purpose |
+|--------|-----|---------|
 | File | F1 | Load / save site configurations |
 | Scan | F2 | Discover devices on the network |
 | Monitor | F3 | Start / stop continuous monitoring |
 | Groups | F4 | Manage device groups |
 | Setup | F5 | Configure application settings |
+| Config IP | I | Change IP addresses for tracked devices |
+| Admin PW | A | Set administrator credentials on unconfigured cameras |
 
 ### Status Bar
 
@@ -74,7 +78,7 @@ The application supports multiple colour themes. Open the command palette with `
 3. Adjust the timeout if needed (default: 3 seconds)
 4. Wait for the scan to complete
 
-The scan sends a UDP broadcast on port 10670 to discover all i-PRO cameras and recorders on your local network segment.
+The scan sends a UDP broadcast on port 10670 to discover all i-PRO cameras and recorders on your local network segment. Each camera's response also carries its current setup-window state and admin-password status, which are stored alongside the device record.
 
 ### First-Time Scanning
 
@@ -88,6 +92,8 @@ After scanning you will see:
 - Devices already in your site
 
 Select which new devices to add and choose a target group.
+
+After adding devices, if any camera has no admin password set, a warning notification is shown listing those cameras by name. This is a reminder to set credentials before putting the cameras into service.
 
 ### Manual Device Addition
 
@@ -104,9 +110,42 @@ If a device is not discovered automatically:
 
 ---
 
+## Device Security Status
+
+Each camera reports two security-related states in every discovery response. The application tracks and displays these automatically.
+
+### Setup Window
+
+i-PRO cameras accept IP configuration changes only within a **20-minute window** after power-on or factory reset. Outside this window the camera silently ignores all configuration commands.
+
+| State | Meaning |
+|-------|---------|
+| Setup window open | Camera will accept IP configuration changes |
+| Setup window expired | Camera will reject IP changes — power-cycle to reopen |
+
+The current state is shown in the **Device Details** dialog (press `Enter` on any device row).
+
+When you attempt to configure a camera whose setup window has already expired, the application detects this during its pre-scan and reports the failure immediately — no packets are sent to the camera.
+
+### Admin Password
+
+i-PRO cameras ship without an administrator account. Until a password is set, the camera's web interface and certain management functions are unsecured.
+
+| Indicator | Meaning |
+|-----------|---------|
+| `[No PW]` in device name (yellow) | No admin password is set |
+| "Admin Password: NOT SET" in Device Details | Same — visible when you press `Enter` on that row |
+| Orange warning after a scan | Lists all tracked cameras currently without a password |
+
+Both states refresh automatically on every scan — once a password is set, the warning clears at the next scan without any manual action.
+
+---
+
 ## Configuring IP Addresses
 
-The Configure IP dialog lets you change the network settings of one or more tracked cameras in a single operation. Press `I` or use the **Config IP** button to open it.
+The Configure IP dialog lets you change the network settings of one or more tracked cameras in a single operation. Press `I` or click **Config IP** to open it.
+
+> **Important:** Before sending any configuration the application performs a quick network scan (approx. 2 seconds) to check each camera's current setup-window state. Cameras outside their setup window are skipped and reported as failed — they will not waste time sending packets that the camera would ignore.
 
 ### Network Mode
 
@@ -155,7 +194,76 @@ Use these buttons to tick or clear all cameras at once.
 
 Click **Apply Selected** to send the new configuration to every ticked camera. A progress bar shows each camera being configured. The application uses the same two-phase broadcast protocol as the original i-PRO EasyIP.exe tool — the config packet is sent three times followed by a commit packet, exactly mirroring the original behaviour.
 
-> **Note:** The camera's current HTTP port must remain unchanged during configuration. The tool auto-discovers the live port before sending if none is specified.
+The progress screen reports results in three categories:
+
+| Result | Meaning |
+|--------|---------|
+| Succeeded | Camera accepted the new configuration |
+| Setup window expired | Camera was outside its setup window — power-cycle and retry |
+| Failed | A network or protocol error occurred |
+
+---
+
+## Setting Administrator Credentials
+
+i-PRO cameras ship with no administrator account. The **Admin PW** function lets you register credentials on multiple cameras in a single operation, using the camera's built-in `/cgi-bin/reg_admin` CGI endpoint.
+
+> **Note:** This function only works on cameras that have not yet had an admin password set. Once a password is registered, changing or resetting it must be done through the camera's web interface.
+
+### Opening the Dialog
+
+Press `A` or click **Admin PW** in the menu bar. The application automatically filters the device list to show only cameras where `[No PW]` is active. If all tracked cameras already have passwords, a notification says so and the dialog does not open.
+
+### Dialog Layout
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│              Set Administrator Credentials                    │
+├──────────────────────────────────────────────────────────────┤
+│ Username:  [admin                                          ]  │
+│ Password:  [**********                                    ]  │
+│            8-32 characters — must contain letters             │
+│            and numbers.                                       │
+│ Confirm:   [**********                                    ]  │
+├──────────────────────────────────────────────────────────────┤
+│ Cameras without admin password (3):                           │
+│  [X] WV-X22700-V2L  (192.168.1.101)                         │
+│  [X] WV-S1531       (192.168.1.102)                         │
+│  [X] WV-U2130       (192.168.1.103)                         │
+│ [All]  [None]                                                │
+├──────────────────────────────────────────────────────────────┤
+│               [Apply Selected]   [Cancel]                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+All cameras without a password are pre-ticked. Use **All** / **None** to adjust the selection.
+
+### Password Requirements
+
+- 8 to 32 characters
+- Must contain at least one letter (a–z or A–Z)
+- Must contain at least one digit (0–9)
+
+The application validates these rules before making any network calls.
+
+### What Happens on Apply
+
+For each selected camera the application:
+
+1. Connects over HTTPS to the camera's web port (falls back to HTTP if needed)
+2. Sends the credentials as a POST request with BASE64-encoded parameters
+3. Reports success or the specific error for each camera individually
+
+On success the `[No PW]` marker in the device table disappears immediately — no rescan needed.
+
+### Possible Outcomes
+
+| Response | Meaning |
+|----------|---------|
+| Completion of registration | Credentials set successfully |
+| Administrator already registered | A password was already set — use the web interface to change it |
+| Invalid value | Password does not meet the requirements |
+| Connection failed | Camera unreachable — check IP address and network path |
 
 ---
 
@@ -312,7 +420,7 @@ Toggle which columns appear in the device table:
 3. Enter a filename
 4. Click **Save**
 
-Site files are saved as `.json` and include all groups, devices, column visibility settings, scan frequency, and the network interface selection.
+Site files are saved as `.json` and include all groups, devices, admin-password state, column visibility settings, scan frequency, and the network interface selection.
 
 ### Loading a Site
 
@@ -357,6 +465,7 @@ Device Name, Device Type, IP Address, Subnet Mask, Gateway, MAC Address, Model, 
 | `F4` | Groups menu |
 | `F5` | Setup menu |
 | `I` | Configure IP addresses |
+| `A` | Set administrator credentials (Admin PW) |
 | `E` | Export devices |
 | `R` | Refresh display |
 | `O` | Open selected device in browser |
@@ -384,6 +493,8 @@ python Easy_IP.py discover --table --sort type
 ```
 
 Sort options: `ip` (default), `mac`, `serial`, `type`
+
+Discovery output now includes setup window state and admin password status for each device.
 
 ### Configure a Device
 
@@ -415,6 +526,8 @@ python Easy_IP.py configure ... --mode auto_autoip
 python Easy_IP.py configure ... --mode auto_advanced
 ```
 
+The configure command auto-discovers the camera first. If the camera's setup window has expired the command exits immediately with an error rather than sending packets the camera would ignore.
+
 ### Network Mode Options
 
 | `--mode` value | Description |
@@ -430,6 +543,18 @@ python Easy_IP.py configure ... --mode auto_advanced
 |-------------------|-------------|
 | `manual` | Use `--primary-dns` and `--secondary-dns` (default) |
 | `auto` | Camera obtains DNS automatically |
+
+### Set Administrator Credentials
+
+```
+python Easy_IP.py set-admin \
+    --ip 192.168.1.101 \
+    --port 443 \
+    --username admin \
+    --password Admin1234
+```
+
+Only succeeds when the camera has no admin registered. Password must be 8-32 characters and contain both letters and numbers.
 
 ### Diagnostics
 
@@ -464,9 +589,27 @@ Confirm you can ping a camera's IP address from the PC running the tool.
 
 ### IP Configuration Has No Effect
 
-- The camera's HTTP port in the config packet must match its current port. The tool auto-detects this; if it fails, specify `--port` explicitly on the command line.
-- Ensure UDP broadcast is not blocked between the PC and the camera subnet.
-- Some managed switches block broadcast traffic between VLANs.
+**Setup window may have expired**
+i-PRO cameras only accept IP changes within 20 minutes of being powered on. If the setup window has expired, the device table will show this in the Device Details dialog. Power-cycle the camera and retry within 20 minutes.
+
+**Port mismatch**
+The camera's HTTP port in the config packet must match its current port. The tool auto-detects this via discovery. If auto-detection fails, specify `--port` explicitly on the command line.
+
+**Broadcast blocked**
+Ensure UDP broadcast is not blocked between the PC and the camera subnet. Some managed switches block broadcast traffic between VLANs.
+
+### Cannot Set Administrator Password
+
+**Camera already has a password**
+The `reg_admin` CGI endpoint returns HTTP 503 if an admin is already registered. Use the camera's web interface (`https://<camera-ip>`) to manage credentials on cameras that already have a password.
+
+**Connection fails**
+- Confirm the camera's IP address is correct and reachable (ping test)
+- The tool tries HTTPS on the configured port then HTTP on port 80 automatically
+- Check that TCP port 443 (or 80) is not blocked by a firewall between the PC and camera
+
+**Password rejected**
+Ensure the password is 8-32 characters and contains at least one letter and at least one digit. Spaces and some special characters may also cause issues.
 
 ### Application Won't Start
 
@@ -500,4 +643,4 @@ https://github.com/Rickardjd/Easy_IP
 
 ---
 
-*Last updated: May 2025*
+*Last updated: May 2026*
